@@ -1,26 +1,115 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:is(.dark *));
 
+/* Discord palette — literals here so utilities never depend on a stale :root */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-background: #1e1f22;
+  --color-foreground: #dbdee1;
+  --color-card: #2b2d31;
+  --color-card-foreground: #dbdee1;
+  --color-popover: #2b2d31;
+  --color-popover-foreground: #dbdee1;
+  --color-primary: #5865f2;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #313338;
+  --color-secondary-foreground: #dbdee1;
+  --color-muted: #2b2d31;
+  --color-muted-foreground: #949ba4;
+  --color-accent: #4e5058;
+  --color-accent-foreground: #dbdee1;
+  --color-destructive: #ed4245;
+  --color-border: #3f4147;
+  --color-input: #383a40;
+  --color-ring: #5865f2;
+  --color-chart-1: #5865f2;
+  --color-chart-2: #57f287;
+  --color-chart-3: #fee75c;
+  --color-chart-4: #eb459e;
+  --color-chart-5: #949ba4;
+  --color-sidebar: #2b2d31;
+  --color-sidebar-foreground: #dbdee1;
+  --color-sidebar-primary: #5865f2;
+  --color-sidebar-primary-foreground: #ffffff;
+  --color-sidebar-accent: #4e5058;
+  --color-sidebar-accent-foreground: #dbdee1;
+  --color-sidebar-border: #3f4147;
+  --color-sidebar-ring: #5865f2;
+  --font-sans: var(--font-raleway), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-courier), ui-monospace, monospace;
+  --font-heading: var(--font-raleway), ui-sans-serif, system-ui, sans-serif;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 12px;
+  --radius-3xl: 12px;
+  --radius-4xl: 12px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+  :focus-visible {
+    outline: 2px solid #5865f2;
+    outline-offset: 2px;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Shadcn + raw CSS variables — last in file so they override any cached layer */
+:root,
+html.dark {
+  --background: #1e1f22;
+  --foreground: #dbdee1;
+  --card: #2b2d31;
+  --card-foreground: #dbdee1;
+  --popover: #2b2d31;
+  --popover-foreground: #dbdee1;
+  --primary: #5865f2;
+  --primary-foreground: #ffffff;
+  --secondary: #313338;
+  --secondary-foreground: #dbdee1;
+  --muted: #2b2d31;
+  --muted-foreground: #949ba4;
+  --accent: #4e5058;
+  --accent-foreground: #dbdee1;
+  --destructive: #ed4245;
+  --border: #3f4147;
+  --input: #383a40;
+  --ring: #5865f2;
+  --chart-1: #5865f2;
+  --chart-2: #57f287;
+  --chart-3: #fee75c;
+  --chart-4: #eb459e;
+  --chart-5: #949ba4;
+  --radius: 8px;
+  --sidebar: #2b2d31;
+  --sidebar-foreground: #dbdee1;
+  --sidebar-primary: #5865f2;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #4e5058;
+  --sidebar-accent-foreground: #dbdee1;
+  --sidebar-border: #3f4147;
+  --sidebar-ring: #5865f2;
+  color-scheme: dark;
 }
