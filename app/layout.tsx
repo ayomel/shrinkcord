@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Analytics } from "@vercel/analytics/react";
 import { Courier_Prime, Raleway } from "next/font/google";
 import { Footer } from "@/components/block/footer";
 import { SiteHeader } from "@/components/site-header";
@@ -67,6 +68,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           {children}
         </div>
         <Footer />
+        <Analytics />
       </body>
     </html>
   );
