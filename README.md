@@ -1,36 +1,59 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Shrinkcord
 
-## Getting Started
+Shrinkcord is a small web tool for Discord’s free upload limit. Drop a JPEG, PNG, or WebP that is **over 20 MiB**, and the browser brings it down to **19.5 MiB or under**. Files already at or under 20 MiB are left unchanged. Nothing is uploaded to a server.
 
-First, run the development server:
+Built with [Next.js](https://nextjs.org) 16, React 19, and Tailwind CSS 4.
+
+## Why 19.5 MB?
+
+Discord’s free cap is **20 MB**, and Discord documents that as **20 MiB** (20 × 1024 × 1024 bytes). Shrinkcord targets **19.5 MiB** so the file clears the limit with a little room to spare. The app includes a [`/discord-file-limit`](app/discord-file-limit/page.tsx) article on Nitro, boosts, and how limits apply; see also [Discord’s attachment FAQ](https://support.discord.com/hc/en-us/articles/25444343291031-File-Attachments-FAQ).
+
+## How it works
+
+1. Pick or drop one or more images (JPEG, PNG, WebP).
+2. Each file over 20 MiB is decoded in the tab, quality is lowered first, and dimensions are scaled only if needed.
+3. PNG is saved as JPEG (transparency flattened onto white) because lossless PNG cannot hit a byte budget by quality alone.
+4. Download the result; shrunk files are named `your-photo-discord.jpg` (or `.webp` when the output stays WebP).
+
+Processing runs in a Web Worker when the browser supports it, with a main-thread fallback.
+
+## Privacy
+
+Images never leave your device. There is no backend storage or upload step for the compressor.
+
+## Development
+
+**Requirements:** Node.js 20+ and npm.
 
 ```bash
+git clone https://github.com/ayomel/shrinkcord.git
+cd shrinkcord
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Command        | Description              |
+| -------------- | ------------------------ |
+| `npm run dev`  | Start dev server         |
+| `npm run build`| Production build         |
+| `npm run start`| Serve production build   |
+| `npm run lint` | Run ESLint               |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+ `http://localhost:3000`.
 
-## Learn More
+## Project layout
 
-To learn more about Next.js, take a look at the following resources:
+```text
+app/                 Pages, layout, SEO (sitemap, robots, OG image)
+components/          UI and the compressor drop zone
+lib/compress.ts      Client-side shrink logic
+lib/limits.ts        20 / 19.5 MiB constants and helpers
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+UI pieces come from [ObsidianUI](https://www.obsidianui.dev/) and [EasyUI](https://easyui.site/) via the shadcn registry, restyled to Discord’s dark palette and blurple accent.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Disclaimer
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Shrinkcord is **not affiliated with Discord**. Discord is a trademark of Discord Inc. This project uses Discord’s public brand colors for familiarity only; it does not use Discord logos or other branded assets.
