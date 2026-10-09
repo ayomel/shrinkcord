@@ -23,25 +23,33 @@ Images never leave your device. There is no backend storage or upload step for t
 
 ## Development
 
-**Requirements:** Node.js 20+ and npm.
+**Requirements:** Node.js 20+ and [pnpm](https://pnpm.io/installation) 10+ (Corepack: `corepack enable` then use the version pinned in `package.json`).
 
 ```bash
 git clone https://github.com/ayomel/shrinkcord.git
 cd shrinkcord
-npm install
-npm run dev
+pnpm install
+pnpm dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
 
-| Command        | Description              |
-| -------------- | ------------------------ |
-| `npm run dev`  | Start dev server         |
-| `npm run build`| Production build         |
-| `npm run start`| Serve production build   |
-| `npm run lint` | Run ESLint               |
+| Command       | Description              |
+| ------------- | ------------------------ |
+| `pnpm dev`    | Start dev server         |
+| `pnpm build`  | Production build         |
+| `pnpm start`  | Serve production build   |
+| `pnpm lint`   | Run ESLint               |
 
- `http://localhost:3000`.
+### Environment
+
+Set the public site URL for canonical links, sitemap, and Open Graph metadata:
+
+```bash
+NEXT_PUBLIC_SITE_URL=https://your-domain.com
+```
+
+If unset, metadata defaults to `http://localhost:3000`.
 
 ## Project layout
 
