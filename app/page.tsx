@@ -1,12 +1,9 @@
 import { Compressor } from "@/components/compressor"
 import { JsonLd } from "@/components/json-ld"
-import { Button } from "@/components/ui/button"
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { FAQ } from "@/components/ui/faq"
-import { SpotlightCard } from "@/components/ui/spotlight-card"
 import { faqs } from "@/lib/faq"
 import { site } from "@/lib/site"
-import { Lock, ScanSearch, UnfoldHorizontal } from "lucide-react"
+import { Check } from "lucide-react"
 import Link from "next/link"
 
 const steps = [
@@ -15,7 +12,7 @@ const steps = [
     copy: "JPEG, PNG, or WebP. Several files run one at a time so the tab stays responsive.",
   },
   {
-    title: "Leave small files alone",
+    title: "Small files stay as they are",
     copy: "Anything at or under 20 MB is returned unchanged. Only larger files are re-encoded.",
   },
   {
@@ -24,21 +21,18 @@ const steps = [
   },
 ]
 
-const capabilities = [
+const proofs = [
   {
-    icon: Lock,
-    title: "Stays in the browser",
-    copy: "The image is decoded on this device. Shrinkcord never receives the file.",
+    lead: "Nothing is uploaded",
+    rest: "— the file is decoded and re-encoded on this device.",
   },
   {
-    icon: ScanSearch,
-    title: "Only files over 20 MB",
-    copy: "The free Discord cap is the line. Smaller images are not recompressed.",
+    lead: "Quality first, then dimensions",
+    rest: "— size only shrinks if it still has to.",
   },
   {
-    icon: UnfoldHorizontal,
-    title: "19.5 MB cushion",
-    copy: "Quality drops first. Dimensions shrink only if the file is still too big.",
+    lead: "Files at or under 20 MB",
+    rest: "are returned unchanged.",
   },
 ]
 
@@ -77,108 +71,154 @@ export default function Home() {
         }}
       />
 
-      <section className="mx-auto w-full max-w-[1280px] px-4 pt-20 pb-12 md:pt-28 md:pb-16">
-        <div className="mx-auto max-w-[980px] text-center">
-          <p className="font-mono text-[0.6875rem] font-medium tracking-[0.08em] text-primary uppercase">
-            Discord limit
-          </p>
-          <h1 className="mx-auto mt-4 max-w-[12em] text-[clamp(2.75rem,7vw,6.75rem)] leading-[0.92] font-semibold tracking-[-0.055em] text-foreground">
-            Shrink images Discord will take.
-          </h1>
-          <p className="mx-auto mt-6 max-w-[650px] text-base leading-relaxed text-muted-foreground">
-            Free Discord accounts stop at 20 MB. Shrinkcord brings larger JPEG, PNG, and WebP files
-            down to 19.5 MB in your browser, and leaves smaller ones untouched.
-          </p>
-          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Button asChild>
-              <Link href="#shrink">Shrink an image</Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link href="/discord-file-limit">Discord file limit</Link>
-            </Button>
+      <section className="mx-auto w-full max-w-[1160px] px-[18px] pt-7 pb-10 sm:px-8 lg:pt-16 lg:pb-[72px]">
+        <div className="grid items-center gap-6 lg:grid-cols-[1fr_1.05fr] lg:gap-14">
+          <div>
+            <span className="inline-flex items-center gap-2 rounded-full border border-[rgba(88,101,242,0.3)] bg-[rgba(88,101,242,0.12)] px-2.5 py-1 text-[13px] font-semibold text-brand-text">
+              For Discord’s free 20 MB upload limit
+            </span>
+            <h1 className="mt-3.5 text-[36px] leading-[1.05] font-extrabold tracking-[-0.035em] text-foreground lg:mt-5 lg:text-[54px]">
+              Get any image under Discord’s{" "}
+              <em className="not-italic text-brand-text">20&nbsp;MB</em> limit.
+            </h1>
+            <p className="lede mt-3 max-w-[30em] text-base text-muted-foreground lg:mt-[18px] lg:text-lg">
+              Drop a JPEG, PNG, or WebP over 20 MB. Shrinkcord re-encodes it to{" "}
+              <b className="font-semibold text-foreground">19.5 MB or less</b>, right in your
+              browser. Smaller files are left untouched.
+            </p>
+            <div className="mt-3.5 flex flex-wrap gap-3.5 text-[13px] text-muted-foreground lg:hidden">
+              <span className="inline-flex items-center gap-1.5">
+                <Check className="size-3.5 text-ok-text" strokeWidth={2.4} aria-hidden="true" />
+                Nothing is uploaded
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <Check className="size-3.5 text-ok-text" strokeWidth={2.4} aria-hidden="true" />
+                Quality first
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <Check className="size-3.5 text-ok-text" strokeWidth={2.4} aria-hidden="true" />
+                Free
+              </span>
+            </div>
+            <ul className="mt-7 hidden gap-3 lg:grid">
+              {proofs.map((proof) => (
+                <li key={proof.lead} className="flex items-start gap-3 text-[15px] text-foreground">
+                  <Check
+                    className="mt-0.5 size-[18px] shrink-0 text-ok-text"
+                    strokeWidth={2.4}
+                    aria-hidden="true"
+                  />
+                  <div>
+                    {proof.lead}{" "}
+                    <span className="text-muted-foreground">{proof.rest}</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
           </div>
-          <p className="mt-6 font-mono text-xs text-muted-foreground">
-            Runs locally. Nothing is uploaded.
-          </p>
-        </div>
-        <div className="mx-auto mt-12 max-w-[880px]">
           <Compressor />
         </div>
       </section>
 
       <section id="how" className="scroll-mt-24 border-t border-border">
-        <div className="mx-auto w-full max-w-[1280px] px-4 py-16 md:py-24">
-          <p className="font-mono text-[0.6875rem] font-medium tracking-[0.08em] text-muted-foreground uppercase">
-            How it works
-          </p>
-          <h2 className="mt-3 max-w-xl text-[clamp(1.75rem,3vw,2.75rem)] leading-[1.05] font-semibold tracking-[-0.03em]">
-            Quality first, then dimensions
-          </h2>
-          <div className="mt-8 grid gap-3 md:grid-cols-3">
+        <div className="mx-auto w-full max-w-[1160px] px-[18px] py-12 sm:px-8 lg:py-[72px]">
+          <div className="mb-6 flex flex-col justify-between gap-2 lg:mb-8 lg:flex-row lg:items-end lg:gap-6">
+            <h2 className="text-[26px] leading-[1.15] font-bold tracking-[-0.03em] lg:text-[32px]">
+              How it works
+            </h2>
+            <p className="max-w-[28em] text-[15px] text-muted-foreground">
+              Quality drops first. Dimensions shrink only if the file is still too big.
+            </p>
+          </div>
+          <div className="grid overflow-hidden rounded-[14px] border border-border lg:grid-cols-3">
             {steps.map((step, index) => (
-              <Card key={step.title}>
-                <CardHeader>
-                  <p className="font-mono text-xs text-primary">0{index + 1}</p>
-                  <CardTitle>{step.title}</CardTitle>
-                  <CardDescription>{step.copy}</CardDescription>
-                </CardHeader>
-              </Card>
+              <div
+                key={step.title}
+                className="border-border bg-card p-5 lg:border-l lg:p-[26px] lg:pb-7 lg:first:border-l-0 [&:not(:first-child)]:border-t lg:[&:not(:first-child)]:border-t-0"
+              >
+                <div className="font-mono text-[13px] font-semibold text-brand-text">
+                  0{index + 1}
+                </div>
+                <h3 className="mt-2.5 text-[17px] font-semibold tracking-[-0.01em]">{step.title}</h3>
+                <p className="mt-1.5 text-[14.5px] leading-relaxed text-muted-foreground">
+                  {step.copy.includes("-discord") ? (
+                    <>
+                      The result is 19.5 MB or under, named with <code>-discord</code>, ready for a
+                      free Discord upload.
+                    </>
+                  ) : (
+                    step.copy
+                  )}
+                </p>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="border-t border-border">
-        <div className="mx-auto grid w-full max-w-[1280px] gap-3 px-4 py-16 md:grid-cols-3 md:py-24">
-          {capabilities.map((item) => (
-            <SpotlightCard key={item.title}>
-              <item.icon className="size-4 text-primary" aria-hidden="true" />
-              <h2 className="mt-4 text-base font-semibold tracking-[-0.01em]">{item.title}</h2>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{item.copy}</p>
-            </SpotlightCard>
-          ))}
-        </div>
-      </section>
-
-      <section className="border-t border-border">
-        <div className="mx-auto w-full max-w-[800px] px-4 py-16 text-center md:py-24">
-          <p className="font-mono text-[clamp(1.75rem,4vw,3rem)] leading-none text-foreground">
-            <span className="text-primary">19.5 MB</span>, so the file clears 20.
-          </p>
-          <p className="mx-auto mt-4 max-w-[60ch] text-sm leading-relaxed text-muted-foreground">
-            Discord measures the free cap as 20 MiB and checks that size before it compresses the
-            upload. Half a megabyte of room is the insurance.
-          </p>
+      <section id="limit" className="scroll-mt-24 border-t border-border">
+        <div className="mx-auto grid w-full max-w-[1160px] items-center gap-6 px-[18px] py-12 sm:px-8 lg:grid-cols-2 lg:gap-14 lg:py-[72px]">
+          <div>
+            <h2 className="text-[34px] leading-none font-extrabold tracking-[-0.03em] lg:text-[44px]">
+              Why 19.5 MB?
+            </h2>
+            <p className="mt-3 max-w-[30em] text-base text-muted-foreground">
+              Discord counts the free cap as 20 MiB (20 × 1024 × 1024 bytes) and checks the size
+              before it compresses the upload. Stopping at 19.5 MiB leaves half a megabyte of
+              insurance. Read the full{" "}
+              <Link
+                href="/discord-file-limit"
+                className="text-foreground underline decoration-border underline-offset-4 hover:text-brand-text"
+              >
+                Discord file limit
+              </Link>{" "}
+              notes.
+            </p>
+          </div>
+          <div className="rounded-[14px] border border-border bg-card p-5 sm:p-7">
+            <div className="flex items-center justify-between text-sm">
+              <span className="font-semibold text-foreground">Your file after Shrinkcord</span>
+              <span className="font-mono text-ok-text">≤ 19.5 MiB</span>
+            </div>
+            <div className="relative mt-8 mb-3.5 h-3.5 rounded-lg bg-accent">
+              <div
+                className="absolute inset-y-0 left-0 w-[88.6%] rounded-lg bg-[linear-gradient(90deg,#5865f2,#7984f5)]"
+                aria-hidden="true"
+              />
+              <div
+                className="absolute top-[-30px] bottom-[-8px] left-[90.9%] w-0.5 bg-[#ed4245]"
+                aria-hidden="true"
+              >
+                <span className="absolute top-0 right-2 whitespace-nowrap text-xs font-semibold text-destructive">
+                  Discord free cap · 20 MiB
+                </span>
+              </div>
+            </div>
+            <div className="relative h-4 font-mono text-xs text-muted-foreground">
+              <span className="absolute left-0">0</span>
+              <span className="absolute left-[45.5%] -translate-x-1/2">10 MiB</span>
+              <span className="absolute left-[90.9%] -translate-x-1/2 whitespace-nowrap">
+                20 MiB
+              </span>
+            </div>
+          </div>
         </div>
       </section>
 
       <section id="faq" className="scroll-mt-24 border-t border-border">
-        <div className="mx-auto w-full max-w-[1280px] px-4 py-16 md:py-24">
-          <p className="text-center font-mono text-[0.6875rem] font-medium tracking-[0.08em] text-muted-foreground uppercase">
-            FAQ
-          </p>
-          <h2 className="mt-3 text-center text-[clamp(1.75rem,3vw,2.75rem)] leading-[1.05] font-semibold tracking-[-0.03em]">
+        <div className="mx-auto w-full max-w-[1160px] px-[18px] py-12 sm:px-8 lg:py-[72px]">
+          <h2 className="text-[26px] leading-[1.15] font-bold tracking-[-0.03em] lg:text-[32px]">
             Before you send it
           </h2>
-          <div className="mt-8">
-            <FAQ items={[...faqs]} iconStyle="plus-minus" />
+          <div className="mt-6 lg:mt-8">
+            <FAQ
+              items={[...faqs]}
+              iconStyle="plus-minus"
+              allowMultiple
+              variant="separated"
+              defaultOpen={faqs[0].id}
+            />
           </div>
-        </div>
-      </section>
-
-      <section className="border-t border-border">
-        <div className="mx-auto flex w-full max-w-[1280px] flex-col items-start justify-between gap-6 px-4 py-16 md:flex-row md:items-center md:py-20">
-          <div>
-            <h2 className="text-[clamp(1.75rem,3vw,2.75rem)] leading-[1.05] font-semibold tracking-[-0.03em]">
-              Get the image under the line.
-            </h2>
-            <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground">
-              Drop a file over 20 MB. Download one that Discord&apos;s free upload will accept.
-            </p>
-          </div>
-          <Button asChild>
-            <Link href="#shrink">Shrink an image</Link>
-          </Button>
         </div>
       </section>
     </main>

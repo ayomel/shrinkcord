@@ -14,35 +14,65 @@ export default function OpenGraphImage() {
           justifyContent: "space-between",
           width: "100%",
           height: "100%",
-          background: "#1E1F22",
-          color: "#DBDEE1",
+          background: "#18191c",
+          color: "#eceef1",
           padding: "72px",
         }}
       >
         <div
           style={{
             display: "flex",
-            fontSize: 22,
-            letterSpacing: 3,
-            color: "#5865F2",
+            alignItems: "center",
+            gap: 14,
+            fontSize: 24,
+            fontWeight: 700,
+            color: "#eceef1",
           }}
         >
-          SHRINKCORD
+          <div
+            style={{
+              display: "flex",
+              width: 36,
+              height: 36,
+              borderRadius: 10,
+              background: "#5865f2",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <div
+              style={{
+                width: 14,
+                height: 14,
+                border: "2.5px solid #ffffff",
+                borderRadius: 4,
+              }}
+            />
+          </div>
+          <div style={{ display: "flex" }}>Shrinkcord</div>
         </div>
         <div style={{ display: "flex", flexDirection: "column" }}>
           <div
             style={{
-              fontSize: 76,
-              fontWeight: 600,
+              display: "flex",
+              flexDirection: "column",
+              fontSize: 64,
+              fontWeight: 800,
               letterSpacing: -2,
-              lineHeight: 0.95,
-              color: "#FFFFFF",
+              lineHeight: 1.05,
+              color: "#ffffff",
+              maxWidth: 920,
             }}
           >
-            Shrink images Discord will take.
+            <div style={{ display: "flex" }}>Get any image under</div>
+            <div style={{ display: "flex" }}>
+              <span>Discord&apos;s&nbsp;</span>
+              <span style={{ color: "#949cf7" }}>20 MB</span>
+              <span>&nbsp;limit.</span>
+            </div>
           </div>
-          <div style={{ marginTop: 28, fontSize: 28, color: "#949BA4" }}>
-            Over 20 MB down to 19.5 MB. In the browser.
+          <div style={{ display: "flex", marginTop: 28, fontSize: 28, color: "#a3a9b2" }}>
+            Over 20 MB down to 19.5 MB. In the browser. Nothing uploaded.
           </div>
         </div>
       </div>

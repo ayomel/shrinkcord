@@ -4,49 +4,56 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Discord palette — literals here so utilities never depend on a stale :root */
+/* Discord-like Direction A tokens — literals so utilities never depend on a stale :root */
 @theme inline {
-  --color-background: #1e1f22;
-  --color-foreground: #dbdee1;
-  --color-card: #2b2d31;
-  --color-card-foreground: #dbdee1;
-  --color-popover: #2b2d31;
-  --color-popover-foreground: #dbdee1;
-  --color-primary: #5865f2;
+  --color-background: #18191c;
+  --color-foreground: #eceef1;
+  --color-card: #202225;
+  --color-card-foreground: #eceef1;
+  --color-popover: #202225;
+  --color-popover-foreground: #eceef1;
+  --color-primary: #4752c4;
   --color-primary-foreground: #ffffff;
-  --color-secondary: #313338;
-  --color-secondary-foreground: #dbdee1;
-  --color-muted: #2b2d31;
-  --color-muted-foreground: #949ba4;
-  --color-accent: #4e5058;
-  --color-accent-foreground: #dbdee1;
-  --color-destructive: #ed4245;
-  --color-border: #3f4147;
-  --color-input: #383a40;
+  --color-secondary: #26282c;
+  --color-secondary-foreground: #eceef1;
+  --color-muted: #26282c;
+  --color-muted-foreground: #a3a9b2;
+  --color-accent: #2c2e33;
+  --color-accent-foreground: #eceef1;
+  --color-destructive: #ff8a8c;
+  --color-border: #34363c;
+  --color-input: #34363c;
   --color-ring: #5865f2;
+  --color-brand: #5865f2;
+  --color-brand-text: #949cf7;
+  --color-ok: #3ba55d;
+  --color-ok-text: #5fd38a;
+  --color-warn: #f0b232;
+  --color-surface: #202225;
+  --color-surface-2: #26282c;
   --color-chart-1: #5865f2;
-  --color-chart-2: #57f287;
-  --color-chart-3: #fee75c;
+  --color-chart-2: #5fd38a;
+  --color-chart-3: #f0b232;
   --color-chart-4: #eb459e;
-  --color-chart-5: #949ba4;
-  --color-sidebar: #2b2d31;
-  --color-sidebar-foreground: #dbdee1;
-  --color-sidebar-primary: #5865f2;
+  --color-chart-5: #a3a9b2;
+  --color-sidebar: #202225;
+  --color-sidebar-foreground: #eceef1;
+  --color-sidebar-primary: #4752c4;
   --color-sidebar-primary-foreground: #ffffff;
-  --color-sidebar-accent: #4e5058;
-  --color-sidebar-accent-foreground: #dbdee1;
-  --color-sidebar-border: #3f4147;
+  --color-sidebar-accent: #26282c;
+  --color-sidebar-accent-foreground: #eceef1;
+  --color-sidebar-border: #34363c;
   --color-sidebar-ring: #5865f2;
-  --font-sans: var(--font-raleway), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-courier), ui-monospace, monospace;
-  --font-heading: var(--font-raleway), ui-sans-serif, system-ui, sans-serif;
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
-  --radius-xl: 12px;
-  --radius-2xl: 12px;
-  --radius-3xl: 12px;
-  --radius-4xl: 12px;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+  --font-heading: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 14px;
+  --radius-2xl: 16px;
+  --radius-3xl: 16px;
+  --radius-4xl: 16px;
 }
 
 @layer base {
@@ -55,6 +62,8 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-variant-numeric: lining-nums;
+    -webkit-font-smoothing: antialiased;
   }
   html {
     @apply font-sans;
@@ -62,6 +71,9 @@
   :focus-visible {
     outline: 2px solid #5865f2;
     outline-offset: 2px;
+  }
+  code {
+    @apply rounded-[5px] bg-accent px-1.5 py-px font-mono text-[0.9em] text-foreground whitespace-nowrap;
   }
 }
 
@@ -79,37 +91,42 @@
 /* Shadcn + raw CSS variables — last in file so they override any cached layer */
 :root,
 html.dark {
-  --background: #1e1f22;
-  --foreground: #dbdee1;
-  --card: #2b2d31;
-  --card-foreground: #dbdee1;
-  --popover: #2b2d31;
-  --popover-foreground: #dbdee1;
-  --primary: #5865f2;
+  --background: #18191c;
+  --foreground: #eceef1;
+  --card: #202225;
+  --card-foreground: #eceef1;
+  --popover: #202225;
+  --popover-foreground: #eceef1;
+  --primary: #4752c4;
   --primary-foreground: #ffffff;
-  --secondary: #313338;
-  --secondary-foreground: #dbdee1;
-  --muted: #2b2d31;
-  --muted-foreground: #949ba4;
-  --accent: #4e5058;
-  --accent-foreground: #dbdee1;
-  --destructive: #ed4245;
-  --border: #3f4147;
-  --input: #383a40;
+  --secondary: #26282c;
+  --secondary-foreground: #eceef1;
+  --muted: #26282c;
+  --muted-foreground: #a3a9b2;
+  --accent: #2c2e33;
+  --accent-foreground: #eceef1;
+  --destructive: #ff8a8c;
+  --border: #34363c;
+  --input: #34363c;
   --ring: #5865f2;
+  --brand: #5865f2;
+  --brand-text: #949cf7;
+  --ok: #3ba55d;
+  --ok-text: #5fd38a;
+  --warn: #f0b232;
   --chart-1: #5865f2;
-  --chart-2: #57f287;
-  --chart-3: #fee75c;
+  --chart-2: #5fd38a;
+  --chart-3: #f0b232;
   --chart-4: #eb459e;
-  --chart-5: #949ba4;
-  --radius: 8px;
-  --sidebar: #2b2d31;
-  --sidebar-foreground: #dbdee1;
-  --sidebar-primary: #5865f2;
+  --chart-5: #a3a9b2;
+  --radius: 12px;
+  --sidebar: #202225;
+  --sidebar-foreground: #eceef1;
+  --sidebar-primary: #4752c4;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #4e5058;
-  --sidebar-accent-foreground: #dbdee1;
-  --sidebar-border: #3f4147;
+  --sidebar-accent: #26282c;
+  --sidebar-accent-foreground: #eceef1;
+  --sidebar-border: #34363c;
   --sidebar-ring: #5865f2;
   color-scheme: dark;
 }

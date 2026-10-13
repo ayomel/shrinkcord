@@ -1,22 +1,21 @@
 import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/react";
-import { Courier_Prime, Raleway } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import { Footer } from "@/components/block/footer";
 import { SiteHeader } from "@/components/site-header";
 import { site } from "@/lib/site";
 import "./globals.css";
 
-const raleway = Raleway({
-  variable: "--font-raleway",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
   display: "swap",
 });
 
-const courierPrime = Courier_Prime({
-  variable: "--font-courier",
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-jetbrains-mono",
   subsets: ["latin"],
-  weight: ["400", "700"],
+  weight: ["500", "600"],
   display: "swap",
 });
 
@@ -54,7 +53,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${raleway.variable} ${courierPrime.variable} dark h-full antialiased`}
+      className={`${inter.variable} ${jetbrainsMono.variable} dark h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
         <a

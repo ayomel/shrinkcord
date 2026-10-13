@@ -40,6 +40,8 @@ export interface FAQProps {
   variant?: 'unified' | 'separated';
   /** Additional container styling */
   className?: string;
+  /** Additional list styling (applies to the items wrapper) */
+  listClassName?: string;
 }
 
 export const FAQ: React.FC<FAQProps> = ({
@@ -55,6 +57,7 @@ export const FAQ: React.FC<FAQProps> = ({
   showCategories = false,
   variant = 'unified',
   className,
+  listClassName,
 }) => {
   const defaultInitial = defaultOpen
     ? Array.isArray(defaultOpen)
@@ -70,7 +73,6 @@ export const FAQ: React.FC<FAQProps> = ({
   const isControlled = controlledOpenIds !== undefined;
   const activeOpenIds = isControlled ? controlledOpenIds : internalOpenIds;
 
-  // Extract unique categories if requested
   const categories = React.useMemo(() => {
     if (!showCategories) return [];
     const cats = new Set<string>();
@@ -80,7 +82,6 @@ export const FAQ: React.FC<FAQProps> = ({
     return cats.size > 0 ? ['All', ...Array.from(cats)] : [];
   }, [items, showCategories]);
 
-  // Filter items based on search and category
   const filteredItems = React.useMemo(() => {
     return items.filter((item) => {
       const matchCategory =
@@ -141,22 +142,20 @@ export const FAQ: React.FC<FAQProps> = ({
   };
 
   return (
-    <div className={cn('w-full max-w-3xl mx-auto space-y-4', className)}>
-      {/* Optional Search Bar */}
+    <div className={cn('w-full space-y-4', className)}>
       {searchable && (
         <div className="relative">
-          <Search className="w-4 h-4 text-[#525252] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <Search className="w-4 h-4 text-muted-foreground absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={searchPlaceholder}
-            className="w-full h-10 pl-10 pr-4 text-xs text-[#FAFAFA] placeholder:text-[#6B6B6B] bg-[#141414] border border-[#1F1F1F] rounded-xl focus:border-[#4A4A4A] focus:outline-none focus-ring transition-colors"
+            className="w-full h-10 pl-10 pr-4 text-xs text-foreground placeholder:text-muted-foreground bg-card border border-border rounded-xl focus:border-brand focus:outline-none transition-colors"
           />
         </div>
       )}
 
-      {/* Optional Category Filter Pills */}
       {showCategories && categories.length > 1 && (
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
           {categories.map((cat) => (
@@ -165,10 +164,10 @@ export const FAQ: React.FC<FAQProps> = ({
               type="button"
               onClick={() => setSelectedCategory(cat)}
               className={cn(
-                'px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors focus-ring cursor-pointer',
+                'px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors cursor-pointer',
                 selectedCategory === cat
-                  ? 'bg-[#141414] text-[#FAFAFA] border border-[#1F1F1F]'
-                  : 'text-[#6B6B6B] hover:text-[#FAFAFA] hover:bg-[#0E0E0E]'
+                  ? 'bg-card text-foreground border border-border'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
               )}
             >
               {cat}
@@ -177,46 +176,36 @@ export const FAQ: React.FC<FAQProps> = ({
         </div>
       )}
 
-      {/* FAQ Items List */}
       {filteredItems.length === 0 ? (
-        <div className="p-8 text-center rounded-xl border border-[#1F1F1F] bg-[#0E0E0E]">
-          <HelpCircle className="w-6 h-6 text-[#6B6B6B] mx-auto mb-2 opacity-60" />
-          <p className="text-xs text-[#6B6B6B]">No matching questions found.</p>
+        <div className="p-8 text-center rounded-xl border border-border bg-card">
+          <HelpCircle className="w-6 h-6 text-muted-foreground mx-auto mb-2 opacity-60" />
+          <p className="text-xs text-muted-foreground">No matching questions found.</p>
         </div>
       ) : variant === 'separated' ? (
-        /* Separated Cards Mode */
-        <div className="space-y-2.5">
+        <div className={cn('grid gap-x-8 gap-y-0 lg:grid-cols-2', listClassName)}>
           {filteredItems.map((item) => {
             const isOpen = activeOpenIds.includes(item.id);
             const contentId = `${baseId}-content-${item.id}`;
             const headerId = `${baseId}-header-${item.id}`;
 
             return (
-              <div
-                key={item.id}
-                className={cn(
-                  'rounded-xl border transition-all duration-200 overflow-hidden',
-                  isOpen
-                    ? 'border-[#4A4A4A] bg-[#141414] shadow-[0_4px_20px_rgba(0,0,0,0.4)]'
-                    : 'border-[#1F1F1F] bg-[#0E0E0E] hover:border-[#4A4A4A]'
-                )}
-              >
+              <div key={item.id} className="border-b border-border py-[18px]">
                 <button
                   id={headerId}
                   type="button"
                   onClick={() => toggleItem(item.id)}
                   aria-expanded={isOpen}
                   aria-controls={contentId}
-                  className="group flex w-full items-center justify-between p-4 sm:p-5 text-left transition-colors focus-ring cursor-pointer"
+                  className="group flex w-full items-center justify-between gap-3 text-left transition-colors cursor-pointer"
                 >
-                  <div className="flex items-center gap-3 pr-4">
+                  <div className="flex items-center gap-3 pr-2 min-w-0">
                     {item.icon && (
                       <span className="text-muted-foreground group-hover:text-foreground transition-colors shrink-0">
                         {item.icon}
                       </span>
                     )}
-                    <div>
-                      <div className="text-xs sm:text-sm font-medium text-foreground group-hover:text-white transition-colors">
+                    <div className="min-w-0">
+                      <div className="text-[15.5px] font-semibold text-foreground">
                         {item.question}
                       </div>
                       {item.badge && (
@@ -234,7 +223,7 @@ export const FAQ: React.FC<FAQProps> = ({
                   role="region"
                   aria-labelledby={headerId}
                   hidden={!isOpen}
-                  className="border-t border-border px-4 pt-3 pb-4 text-sm leading-relaxed text-muted-foreground sm:px-5 sm:pb-5"
+                  className="pt-1.5 text-[14.5px] leading-relaxed text-muted-foreground"
                 >
                   {item.answer}
                 </div>
@@ -243,8 +232,12 @@ export const FAQ: React.FC<FAQProps> = ({
           })}
         </div>
       ) : (
-        /* Unified Accordion Card Mode */
-        <div className="flex flex-col divide-y divide-border rounded-lg border border-border bg-card overflow-hidden">
+        <div
+          className={cn(
+            'flex flex-col divide-y divide-border rounded-lg border border-border bg-card overflow-hidden',
+            listClassName
+          )}
+        >
           {filteredItems.map((item) => {
             const isOpen = activeOpenIds.includes(item.id);
             const contentId = `${baseId}-content-${item.id}`;
@@ -258,7 +251,7 @@ export const FAQ: React.FC<FAQProps> = ({
                   onClick={() => toggleItem(item.id)}
                   aria-expanded={isOpen}
                   aria-controls={contentId}
-                  className="group flex w-full items-center justify-between p-4 sm:p-5 text-left text-foreground hover:bg-secondary transition-colors focus-ring cursor-pointer"
+                  className="group flex w-full items-center justify-between p-4 sm:p-5 text-left text-foreground hover:bg-secondary transition-colors cursor-pointer"
                 >
                   <div className="flex items-center gap-3 pr-4">
                     {item.icon && (
