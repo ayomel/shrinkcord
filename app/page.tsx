@@ -17,18 +17,18 @@ const steps = [
   },
   {
     title: "Download and send",
-    copy: "The result is 19.5 MB or under, named with -discord, ready for a free Discord upload.",
+    copy: "The result is 19.5 MB or under, named with -discord, ready for Discord’s free upload.",
   },
 ]
 
 const proofs = [
   {
-    lead: "Nothing is uploaded",
-    rest: "— the file is decoded and re-encoded on this device.",
+    lead: "Nothing is uploaded.",
+    rest: "The file is decoded and re-encoded on this device.",
   },
   {
-    lead: "Quality first, then dimensions",
-    rest: "— size only shrinks if it still has to.",
+    lead: "Quality first, then dimensions.",
+    rest: "Size only shrinks if it still has to.",
   },
   {
     lead: "Files at or under 20 MB",
@@ -143,8 +143,8 @@ export default function Home() {
                 <p className="mt-1.5 text-[14.5px] leading-relaxed text-muted-foreground">
                   {step.copy.includes("-discord") ? (
                     <>
-                      The result is 19.5 MB or under, named with <code>-discord</code>, ready for a
-                      free Discord upload.
+                      The result is 19.5 MB or under, named with <code>-discord</code>, ready for
+                      Discord’s free upload.
                     </>
                   ) : (
                     step.copy
@@ -164,8 +164,8 @@ export default function Home() {
             </h2>
             <p className="mt-3 max-w-[30em] text-base text-muted-foreground">
               Discord counts the free cap as 20 MiB (20 × 1024 × 1024 bytes) and checks the size
-              before it compresses the upload. Stopping at 19.5 MiB leaves half a megabyte of
-              insurance. Read the full{" "}
+              before it compresses the upload. Stopping at 19.5 MiB leaves 0.5 MiB under that
+              check. Read the full{" "}
               <Link
                 href="/discord-file-limit"
                 className="text-foreground underline decoration-border underline-offset-4 hover:text-brand-text"

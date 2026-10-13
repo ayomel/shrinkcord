@@ -4,7 +4,7 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Discord-like Direction A tokens — literals so utilities never depend on a stale :root */
+/* Discord Direction A tokens. Literals keep utilities independent of a stale :root. */
 @theme inline {
   --color-background: #18191c;
   --color-foreground: #eceef1;
@@ -88,7 +88,7 @@
   }
 }
 
-/* Shadcn + raw CSS variables — last in file so they override any cached layer */
+/* Shadcn + raw CSS variables. Last so they override any cached layer. */
 :root,
 html.dark {
   --background: #18191c;

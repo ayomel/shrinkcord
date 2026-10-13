@@ -1,19 +1,19 @@
 # Shrinkcord
 
-Shrinkcord is a small web tool for Discord’s free upload limit. Drop a JPEG, PNG, or WebP that is **over 20 MiB**, and the browser brings it down to **19.5 MiB or under**. Files already at or under 20 MiB are left unchanged. Nothing is uploaded to a server.
+Shrinkcord shrinks JPEG, PNG, and WebP files for Discord’s free upload limit. Drop a file over 20 MiB and the browser encodes it to 19.5 MiB or under. Files already at or under 20 MiB are left unchanged. Nothing is uploaded to a server.
 
 Built with [Next.js](https://nextjs.org) 16, React 19, and Tailwind CSS 4.
 
 ## Why 19.5 MB?
 
-Discord’s free cap is **20 MB**, and Discord documents that as **20 MiB** (20 × 1024 × 1024 bytes). Shrinkcord targets **19.5 MiB** so the file clears the limit with a little room to spare. The app includes a [`/discord-file-limit`](app/discord-file-limit/page.tsx) article on Nitro, boosts, and how limits apply; see also [Discord’s attachment FAQ](https://support.discord.com/hc/en-us/articles/25444343291031-File-Attachments-FAQ).
+Discord’s free cap is 20 MB, documented as 20 MiB (20 × 1024 × 1024 bytes). Shrinkcord targets 19.5 MiB so the file clears that check with 0.5 MiB of room. See [`/discord-file-limit`](app/discord-file-limit/page.tsx) for Nitro, boosts, and how limits apply, and [Discord’s attachment FAQ](https://support.discord.com/hc/en-us/articles/25444343291031-File-Attachments-FAQ).
 
 ## How it works
 
 1. Pick or drop one or more images (JPEG, PNG, WebP).
-2. Each file over 20 MiB is decoded in the tab. Quality starts at 1.0 and searches down toward 19.5 MiB; dimensions scale only if quality 0.5 is still too large.
-3. Opaque PNGs become JPEG. PNGs with real transparency try WebP (alpha preserved), including scaled passes at quality ≥ 0.8; only if that still exceeds the budget are they flattened onto white and saved as JPEG.
-4. Download the result; shrunk files are named `your-photo-discord.jpg` (or `.webp` when the output stays WebP).
+2. Each file over 20 MiB is decoded in the tab. Quality starts at 1.0 and searches down toward 19.5 MiB. Dimensions scale only if quality 0.5 is still too large.
+3. Opaque PNGs become JPEG. PNGs with transparency try WebP (alpha preserved), including scaled passes at quality ≥ 0.8. If that still exceeds the budget, they are flattened onto white and saved as JPEG.
+4. Download the result. Shrunk files are named `your-photo-discord.jpg` (or `.webp` when the output stays WebP).
 
 Processing runs in a Web Worker when the browser supports it, with a main-thread fallback.
 
@@ -23,7 +23,7 @@ Images never leave your device. There is no backend storage or upload step for t
 
 ## Development
 
-**Requirements:** Node.js 20+ and [pnpm](https://pnpm.io/installation) 10+ (Corepack: `corepack enable` then use the version pinned in `package.json`).
+Requires Node.js 20+ and [pnpm](https://pnpm.io/installation) 10+ (Corepack: `corepack enable`, then the version pinned in `package.json`).
 
 ```bash
 git clone https://github.com/ayomel/shrinkcord.git
@@ -44,7 +44,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ### Environment
 
-Set the public site URL for canonical links, sitemap, and Open Graph metadata:
+Set the public site URL for canonical links, sitemap, and Open Graph metadata.
 
 ```bash
 NEXT_PUBLIC_SITE_URL=https://your-domain.com
@@ -70,4 +70,4 @@ UI pieces come from [ObsidianUI](https://www.obsidianui.dev/) and [EasyUI](https
 
 ## Disclaimer
 
-Shrinkcord is **not affiliated with Discord**. Discord is a trademark of Discord Inc. This project uses Discord’s public brand colors for familiarity only; it does not use Discord logos or other branded assets.
+Shrinkcord is not affiliated with Discord. Discord is a trademark of Discord Inc. This project uses Discord’s public brand colors for familiarity only. It does not use Discord logos or other branded assets.
