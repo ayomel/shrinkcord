@@ -7,9 +7,12 @@ export const DISCORD_FREE_LIMIT_BYTES = 20 * MIB
 export const TARGET_BYTES = Math.floor(19.5 * MIB)
 
 export const MIN_QUALITY = 0.5
-export const MAX_QUALITY = 0.92
+export const MAX_QUALITY = 1
 export const MIN_SHORT_EDGE = 480
-export const SCALE_STEP = 0.9
+/** Stop the quality binary search when within this fraction of the target. */
+export const QUALITY_TARGET_TOLERANCE = 0.02
+/** Cap encode attempts inside one quality search (excludes the initial q=1 probe). */
+export const QUALITY_SEARCH_MAX_STEPS = 8
 
 const ACCEPTED = new Set(["image/jpeg", "image/png", "image/webp"])
 

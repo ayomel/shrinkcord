@@ -11,8 +11,8 @@ Discord’s free cap is **20 MB**, and Discord documents that as **20 MiB** (20 
 ## How it works
 
 1. Pick or drop one or more images (JPEG, PNG, WebP).
-2. Each file over 20 MiB is decoded in the tab, quality is lowered first, and dimensions are scaled only if needed.
-3. PNG is saved as JPEG (transparency flattened onto white) because lossless PNG cannot hit a byte budget by quality alone.
+2. Each file over 20 MiB is decoded in the tab. Quality starts at 1.0 and searches down toward 19.5 MiB; dimensions scale only if quality 0.5 is still too large.
+3. Opaque PNGs become JPEG. PNGs with real transparency try WebP (alpha preserved) first; only if that still exceeds the budget are they flattened onto white and saved as JPEG.
 4. Download the result; shrunk files are named `your-photo-discord.jpg` (or `.webp` when the output stays WebP).
 
 Processing runs in a Web Worker when the browser supports it, with a main-thread fallback.
@@ -40,6 +40,7 @@ Open [http://localhost:3000](http://localhost:3000).
 | `pnpm build`  | Production build         |
 | `pnpm start`  | Serve production build   |
 | `pnpm lint`   | Run ESLint               |
+| `pnpm test`   | Unit tests (node:test)   |
 
 ### Environment
 
@@ -49,7 +50,12 @@ Set the public site URL for canonical links, sitemap, and Open Graph metadata:
 NEXT_PUBLIC_SITE_URL=https://your-domain.com
 ```
 
-If unset, metadata defaults to `http://localhost:3000`.
+Resolution order:
+
+1. `NEXT_PUBLIC_SITE_URL` (preferred for a custom domain)
+2. `https://${VERCEL_PROJECT_PRODUCTION_URL}` on Vercel builds
+3. `https://shrinkcord.vercel.app` as the production fallback
+4. `http://localhost:3000` only when `NODE_ENV === "development"`
 
 ## Project layout
 

@@ -1,6 +1,22 @@
+function resolveSiteUrl() {
+  if (process.env.NEXT_PUBLIC_SITE_URL) {
+    return process.env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, "")
+  }
+
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL.replace(/\/$/, "")}`
+  }
+
+  if (process.env.NODE_ENV === "development") {
+    return "http://localhost:3000"
+  }
+
+  return "https://shrinkcord.vercel.app"
+}
+
 export const site = {
   name: "Shrinkcord",
-  url: process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
+  url: resolveSiteUrl(),
   title: "Shrink Images for Discord's 20 MB Limit | Shrinkcord",
   description:
     "Images over 20 MB are reduced to 19.5 MB in your browser so they fit Discord's free upload limit. JPEG, PNG, and WebP. Nothing is uploaded.",
