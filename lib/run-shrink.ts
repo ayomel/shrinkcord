@@ -5,20 +5,36 @@ type WorkerMessage =
   | { type: "done"; result: ShrinkResult }
   | { type: "error"; message: string }
 
-export function runShrink(file: File, onProgress?: (progress: number) => void) {
+export type RunShrinkDeps = {
+  compress?: typeof compressFile
+  /** Return a Worker, or null/throw to force the main-thread path. */
+  openWorker?: () => Worker
+}
+
+export function runShrink(
+  file: File,
+  onProgress?: (progress: number) => void,
+  deps: RunShrinkDeps = {},
+) {
+  const compress = deps.compress ?? compressFile
+
   return new Promise<ShrinkResult>((resolve, reject) => {
-    if (typeof Worker === "undefined") {
-      compressFile(file, onProgress).then(resolve, reject)
-      return
-    }
+    const openWorker =
+      deps.openWorker ??
+      (() => {
+        if (typeof Worker === "undefined") {
+          throw new Error("Worker unavailable")
+        }
+        return new Worker(new URL("./compress.worker.ts", import.meta.url), {
+          type: "module",
+        })
+      })
 
     let worker: Worker
     try {
-      worker = new Worker(new URL("./compress.worker.ts", import.meta.url), {
-        type: "module",
-      })
+      worker = openWorker()
     } catch {
-      compressFile(file, onProgress).then(resolve, reject)
+      compress(file, onProgress).then(resolve, reject)
       return
     }
 
@@ -37,14 +53,14 @@ export function runShrink(file: File, onProgress?: (progress: number) => void) {
       if (data.type === "done") finish(() => resolve(data.result))
       if (data.type === "error") {
         finish(() => {
-          compressFile(file, onProgress).then(resolve, reject)
+          compress(file, onProgress).then(resolve, reject)
         })
       }
     }
 
     worker.onerror = () => {
       finish(() => {
-        compressFile(file, onProgress).then(resolve, reject)
+        compress(file, onProgress).then(resolve, reject)
       })
     }
 

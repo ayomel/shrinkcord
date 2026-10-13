@@ -47,6 +47,19 @@ describe("searchQualityBySize", () => {
     assert.ok(result.smallest.size > 19_500_000)
     assert.ok(Math.abs(result.smallest.quality - 0.5) < 0.001)
   })
+
+  it("respects a raised minQuality floor (transparent WebP path)", async () => {
+    const qualities: number[] = []
+    await searchQualityBySize(
+      async (quality) => {
+        qualities.push(quality)
+        return { size: 80_000_000, quality }
+      },
+      19_500_000,
+      { minQuality: 0.8 },
+    )
+    assert.ok(qualities.every((q) => q >= 0.8 - 1e-9))
+  })
 })
 
 describe("scaleForTarget", () => {

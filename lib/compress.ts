@@ -3,6 +3,7 @@ import {
   MAX_QUALITY,
   MIN_QUALITY,
   MIN_SHORT_EDGE,
+  MIN_TRANSPARENT_WEBP_QUALITY,
   QUALITY_SEARCH_MAX_STEPS,
   QUALITY_TARGET_TOLERANCE,
   TARGET_BYTES,
@@ -10,6 +11,7 @@ import {
   outputFileName,
   type AcceptedType,
 } from "@/lib/limits"
+import { preferTransparentWebp } from "@/lib/output-strategy"
 import { fileHasTransparency } from "@/lib/png-alpha"
 import { scaleForTarget, searchQualityBySize } from "@/lib/search-quality"
 
@@ -29,6 +31,12 @@ export type ShrinkResult = {
 }
 
 type EncodeType = "image/jpeg" | "image/webp"
+
+export type ScalePassResult = {
+  candidate: { blob: Blob; width: number; height: number; size: number } | null
+  scaled: boolean
+  missedTarget: boolean
+}
 
 function yieldToMain() {
   return new Promise((resolve) => {
@@ -96,6 +104,7 @@ async function searchAtScale(
   flatten: boolean,
   targetBytes: number,
   report: () => void,
+  minQuality: number,
 ) {
   const width = Math.max(1, Math.round(bitmap.width * scale))
   const height = Math.max(1, Math.round(bitmap.height * scale))
@@ -108,7 +117,7 @@ async function searchAtScale(
     },
     targetBytes,
     {
-      minQuality: MIN_QUALITY,
+      minQuality,
       maxQuality: MAX_QUALITY,
       maxSteps: QUALITY_SEARCH_MAX_STEPS,
       tolerance: QUALITY_TARGET_TOLERANCE,
@@ -129,17 +138,27 @@ async function searchAtScale(
   }
 }
 
-async function shrinkWithScalePasses(
+export async function shrinkWithScalePasses(
   bitmap: ImageBitmap,
   type: EncodeType,
   flatten: boolean,
   targetBytes: number,
   report: () => void,
-) {
+  options?: { minQuality?: number },
+): Promise<ScalePassResult> {
+  const minQuality = options?.minQuality ?? MIN_QUALITY
   let scaled = false
   let best: { blob: Blob; width: number; height: number; size: number } | null = null
 
-  const first = await searchAtScale(bitmap, 1, type, flatten, targetBytes, report)
+  const first = await searchAtScale(
+    bitmap,
+    1,
+    type,
+    flatten,
+    targetBytes,
+    report,
+    minQuality,
+  )
   if (first.bestFit) {
     return { candidate: first.bestFit, scaled: false, missedTarget: false }
   }
@@ -167,7 +186,15 @@ async function shrinkWithScalePasses(
   }
   scaled = true
 
-  const second = await searchAtScale(bitmap, scale, type, flatten, targetBytes, report)
+  const second = await searchAtScale(
+    bitmap,
+    scale,
+    type,
+    flatten,
+    targetBytes,
+    report,
+    minQuality,
+  )
   if (second.bestFit) {
     return { candidate: second.bestFit, scaled: true, missedTarget: false }
   }
@@ -181,9 +208,20 @@ async function shrinkWithScalePasses(
       bitmap,
       scale * scaleForTarget(targetBytes, second.smallest.size),
     )
-    if (corrected < scale - 0.001 && Math.min(bitmap.width, bitmap.height) * corrected >= MIN_SHORT_EDGE - 0.5) {
+    if (
+      corrected < scale - 0.001 &&
+      Math.min(bitmap.width, bitmap.height) * corrected >= MIN_SHORT_EDGE - 0.5
+    ) {
       scale = corrected
-      const third = await searchAtScale(bitmap, scale, type, flatten, targetBytes, report)
+      const third = await searchAtScale(
+        bitmap,
+        scale,
+        type,
+        flatten,
+        targetBytes,
+        report,
+        minQuality,
+      )
       if (third.bestFit) {
         return { candidate: third.bestFit, scaled: true, missedTarget: false }
       }
@@ -233,41 +271,41 @@ export async function compressFile(
     inputType === "image/png" ? await fileHasTransparency(file, bitmap) : false
 
   let encodes = 0
-  // Optional WebP probe for transparent PNGs, then full-res + up to two scaled JPEG/WebP passes.
-  const passBudget = 1 + 8
-  const encodeBudget = (hasTransparency ? passBudget : 0) + passBudget * 3
+  // Transparent PNGs get a full WebP scale-pass budget before JPEG flatten passes.
+  const passBudget = 1 + QUALITY_SEARCH_MAX_STEPS
+  const encodeBudget = (hasTransparency ? passBudget * 3 : 0) + passBudget * 3
   const report = () => {
     encodes += 1
     onProgress?.(Math.min(95, Math.round((encodes / encodeBudget) * 100)))
   }
 
   try {
-    // Transparent PNGs: try high-quality WebP (keeps alpha) before flattening to JPEG.
+    // Transparent PNGs: keep alpha via WebP (including scaled passes) before JPEG flatten.
     if (hasTransparency) {
       try {
-        const webp = await searchAtScale(
+        const webp = await shrinkWithScalePasses(
           bitmap,
-          1,
           "image/webp",
           false,
           targetBytes,
           report,
+          { minQuality: MIN_TRANSPARENT_WEBP_QUALITY },
         )
-        if (webp.bestFit) {
+        if (preferTransparentWebp(webp) && webp.candidate) {
           onProgress?.(100)
           return {
-            blob: webp.bestFit.blob,
+            blob: webp.candidate.blob,
             fileName: outputFileName(file.name, "image/webp", false),
             outputType: "image/webp",
             convertedFromPng: false,
             flattenedTransparency: false,
             passthrough: false,
-            scaled: false,
+            scaled: webp.scaled,
             missedTarget: false,
             originalBytes: file.size,
-            outputBytes: webp.bestFit.size,
-            width: webp.bestFit.width,
-            height: webp.bestFit.height,
+            outputBytes: webp.candidate.size,
+            width: webp.candidate.width,
+            height: webp.candidate.height,
           }
         }
       } catch {

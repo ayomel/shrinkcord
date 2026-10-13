@@ -8,6 +8,8 @@ export const TARGET_BYTES = Math.floor(19.5 * MIB)
 
 export const MIN_QUALITY = 0.5
 export const MAX_QUALITY = 1
+/** Floor for transparent PNG → WebP attempts; prefer keeping alpha over mushy WebP. */
+export const MIN_TRANSPARENT_WEBP_QUALITY = 0.8
 export const MIN_SHORT_EDGE = 480
 /** Stop the quality binary search when within this fraction of the target. */
 export const QUALITY_TARGET_TOLERANCE = 0.02
