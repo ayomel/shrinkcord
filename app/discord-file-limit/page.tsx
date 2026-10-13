@@ -44,7 +44,7 @@ const rows = [
 
 export default function DiscordFileLimitPage() {
   return (
-    <main className="mx-auto w-full max-w-[760px] px-4 py-12 md:py-16">
+    <main className="mx-auto w-full max-w-[760px] px-[18px] py-12 sm:px-8 md:py-16">
       <JsonLd
         data={{
           "@context": "https://schema.org",
@@ -88,10 +88,10 @@ export default function DiscordFileLimitPage() {
         </BreadcrumbList>
       </Breadcrumb>
 
-      <p className="mt-8 font-mono text-[0.6875rem] font-medium tracking-[0.08em] text-primary uppercase">
+      <span className="mt-8 inline-flex items-center gap-2 rounded-full border border-[rgba(88,101,242,0.3)] bg-[rgba(88,101,242,0.12)] px-2.5 py-1 text-[13px] font-semibold text-brand-text">
         Updated October 9, 2026
-      </p>
-      <h1 className="mt-3 text-[clamp(2rem,4vw,3.5rem)] leading-none font-semibold tracking-[-0.035em] text-foreground">
+      </span>
+      <h1 className="mt-4 text-[clamp(2rem,4vw,3.5rem)] leading-none font-extrabold tracking-[-0.035em] text-foreground">
         Discord file size limit
       </h1>
       <p className="mt-5 text-base leading-relaxed text-muted-foreground">
@@ -100,7 +100,7 @@ export default function DiscordFileLimitPage() {
         from Discord&apos;s own help center, not from older roundups.
       </p>
 
-      <div className="mt-8 overflow-hidden rounded-lg border border-border">
+      <div className="mt-8 overflow-hidden rounded-[14px] border border-border bg-card">
         <Table>
           <TableHeader>
             <TableRow>
@@ -124,14 +124,14 @@ export default function DiscordFileLimitPage() {
         Source:{" "}
         <a
           href="https://support.discord.com/hc/en-us/articles/25444343291031-File-Attachments-FAQ"
-          className="text-foreground underline decoration-border underline-offset-4 hover:text-primary"
+          className="text-foreground underline decoration-border underline-offset-4 hover:text-brand-text"
         >
           Discord File Attachments FAQ
         </a>
         . Nitro prices and perk names are described on{" "}
         <a
           href="https://support.discord.com/hc/en-us/articles/115000435108-What-are-Nitro-Nitro-Basic"
-          className="text-foreground underline decoration-border underline-offset-4 hover:text-primary"
+          className="text-foreground underline decoration-border underline-offset-4 hover:text-brand-text"
         >
           Discord&apos;s Nitro page
         </a>
@@ -140,7 +140,7 @@ export default function DiscordFileLimitPage() {
 
       <h2
         id="free"
-        className="mt-12 scroll-mt-24 text-[clamp(1.75rem,3vw,2.25rem)] leading-[1.05] font-semibold tracking-[-0.03em]"
+        className="mt-12 scroll-mt-24 text-[clamp(1.75rem,3vw,2.25rem)] leading-[1.05] font-bold tracking-[-0.03em]"
       >
         The free cap is 20 MB
       </h2>
@@ -156,7 +156,7 @@ export default function DiscordFileLimitPage() {
         about half a megabyte under the line the client checks.
       </p>
 
-      <h2 className="mt-12 text-[clamp(1.75rem,3vw,2.25rem)] leading-[1.05] font-semibold tracking-[-0.03em]">
+      <h2 className="mt-12 text-[clamp(1.75rem,3vw,2.25rem)] leading-[1.05] font-bold tracking-[-0.03em]">
         Why some pages still say 10 MB
       </h2>
       <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
@@ -170,7 +170,7 @@ export default function DiscordFileLimitPage() {
 
       <h2
         id="nitro"
-        className="mt-12 scroll-mt-24 text-[clamp(1.75rem,3vw,2.25rem)] leading-[1.05] font-semibold tracking-[-0.03em]"
+        className="mt-12 scroll-mt-24 text-[clamp(1.75rem,3vw,2.25rem)] leading-[1.05] font-bold tracking-[-0.03em]"
       >
         Nitro follows you. A boost does not.
       </h2>
@@ -184,7 +184,7 @@ export default function DiscordFileLimitPage() {
 
       <h2
         id="boosts"
-        className="mt-12 scroll-mt-24 text-[clamp(1.75rem,3vw,2.25rem)] leading-[1.05] font-semibold tracking-[-0.03em]"
+        className="mt-12 scroll-mt-24 text-[clamp(1.75rem,3vw,2.25rem)] leading-[1.05] font-bold tracking-[-0.03em]"
       >
         Images hit the cap before Discord compresses them
       </h2>
@@ -201,7 +201,7 @@ export default function DiscordFileLimitPage() {
         already fit are not touched. The work happens in the browser.
       </p>
 
-      <div className="mt-12 flex flex-col items-start gap-4 border-t border-border pt-8 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mt-12 flex flex-col items-start gap-4 rounded-[14px] border border-border bg-card p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
         <p className="max-w-md text-sm text-muted-foreground">
           Have an image over the free limit? Shrink it here, then send the download.
         </p>

@@ -1,17 +1,15 @@
 "use client"
 
 import FileInput from "@/components/block/file-input"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { OrbitalLoadingRing } from "@/components/ui/orbital-loading-ring"
 import { Progress } from "@/components/ui/progress"
-import { Spinner } from "@/components/ui/spinner"
 import { type ShrinkResult, typeLabel } from "@/lib/compress"
 import { acceptedType, formatMegabytes } from "@/lib/limits"
 import { runShrink } from "@/lib/run-shrink"
-import { useEffect, useRef, useState } from "react"
+import { zipSync } from "fflate"
+import { AlertCircle, X } from "lucide-react"
+import { useEffect, useRef, useState, type MutableRefObject } from "react"
 
 type ItemStatus = "queued" | "working" | "done" | "error"
 
@@ -23,6 +21,59 @@ type QueueItem = {
   error?: string
   result?: ShrinkResult
   downloadUrl?: string
+  thumbUrl?: string
+}
+
+function ResultThumb({ url, name }: { url?: string; name: string }) {
+  if (!url) {
+    return (
+      <div
+        className="size-11 shrink-0 rounded-lg bg-[linear-gradient(135deg,#7a5cff,#2bb3a3_60%,#f2b84b)]"
+        aria-hidden="true"
+      />
+    )
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- object URL preview, not a remote asset
+    <img
+      src={url}
+      alt=""
+      className="size-11 shrink-0 rounded-lg object-cover"
+      title={name}
+    />
+  )
+}
+
+async function makeThumbUrl(file: File): Promise<string | undefined> {
+  try {
+    const bitmap = await createImageBitmap(file, {
+      resizeWidth: 88,
+      resizeQuality: "low",
+    })
+    const canvas = document.createElement("canvas")
+    canvas.width = bitmap.width
+    canvas.height = bitmap.height
+    const context = canvas.getContext("2d")
+    if (!context) {
+      bitmap.close()
+      return undefined
+    }
+    context.drawImage(bitmap, 0, 0)
+    bitmap.close()
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob(resolve, "image/jpeg", 0.72)
+    })
+    if (!blob) return undefined
+    return URL.createObjectURL(blob)
+  } catch {
+    return undefined
+  }
+}
+
+function revokeTracked(urls: MutableRefObject<string[]>, url?: string) {
+  if (!url) return
+  URL.revokeObjectURL(url)
+  urls.current = urls.current.filter((entry) => entry !== url)
 }
 
 export function Compressor() {
@@ -32,9 +83,10 @@ export function Compressor() {
   const urls = useRef<string[]>([])
 
   useEffect(() => {
-    const created = urls.current
+    const tracked = urls
     return () => {
-      for (const url of created) URL.revokeObjectURL(url)
+      // Read the live ref at unmount so Remove/Clear updates are included.
+      for (const url of tracked.current) URL.revokeObjectURL(url)
     }
   }, [])
 
@@ -66,12 +118,19 @@ export function Compressor() {
 
         try {
           const result = await runShrink(current.file, (progress) => {
+            if (!itemsRef.current.some((entry) => entry.id === current.id)) return
             update(current.id, { progress })
           })
           const downloadUrl = URL.createObjectURL(result.blob)
+          const stillPresent = itemsRef.current.some((entry) => entry.id === current.id)
+          if (!stillPresent) {
+            URL.revokeObjectURL(downloadUrl)
+            continue
+          }
           urls.current.push(downloadUrl)
           update(current.id, { status: "done", progress: 100, result, downloadUrl })
         } catch (error) {
+          if (!itemsRef.current.some((entry) => entry.id === current.id)) continue
           update(current.id, {
             status: "error",
             progress: 0,
@@ -93,103 +152,251 @@ export function Compressor() {
     }))
     itemsRef.current = [...itemsRef.current, ...next]
     setItems(itemsRef.current)
+
+    for (const item of next) {
+      void makeThumbUrl(item.file).then((thumbUrl) => {
+        if (!thumbUrl) return
+        const stillPresent = itemsRef.current.some((entry) => entry.id === item.id)
+        if (!stillPresent) {
+          URL.revokeObjectURL(thumbUrl)
+          return
+        }
+        urls.current.push(thumbUrl)
+        update(item.id, { thumbUrl })
+      })
+    }
+
     void drain()
   }
 
+  const removeItem = (id: string) => {
+    const target = itemsRef.current.find((item) => item.id === id)
+    if (!target) return
+    revokeTracked(urls, target.thumbUrl)
+    revokeTracked(urls, target.downloadUrl)
+    itemsRef.current = itemsRef.current.filter((item) => item.id !== id)
+    setItems(itemsRef.current)
+  }
+
+  const clearAll = () => {
+    for (const item of itemsRef.current) {
+      revokeTracked(urls, item.thumbUrl)
+      revokeTracked(urls, item.downloadUrl)
+    }
+    itemsRef.current = []
+    setItems([])
+  }
+
+  const downloadOne = (item: QueueItem) => {
+    if (!item.downloadUrl || !item.result) return
+    const anchor = document.createElement("a")
+    anchor.href = item.downloadUrl
+    anchor.download = item.result.fileName
+    anchor.click()
+  }
+
+  const downloadable = items.filter(
+    (item) => item.status === "done" && item.result && item.downloadUrl,
+  )
+
+  const downloadAll = async () => {
+    if (downloadable.length === 0) return
+
+    const entries: Record<string, Uint8Array> = {}
+    const usedNames = new Set<string>()
+
+    for (const item of downloadable) {
+      const buffer = new Uint8Array(await item.result!.blob.arrayBuffer())
+      let name = item.result!.fileName
+      if (usedNames.has(name)) {
+        const stem = name.replace(/(\.[^.]+)?$/, "")
+        const ext = name.includes(".") ? name.slice(name.lastIndexOf(".")) : ""
+        let n = 2
+        while (usedNames.has(`${stem}-${n}${ext}`)) n += 1
+        name = `${stem}-${n}${ext}`
+      }
+      usedNames.add(name)
+      entries[name] = buffer
+    }
+
+    const zipped = zipSync(entries, { level: 0 })
+    const blob = new Blob([zipped], { type: "application/zip" })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement("a")
+    anchor.href = url
+    anchor.download = "shrinkcord-discord.zip"
+    anchor.click()
+    setTimeout(() => URL.revokeObjectURL(url), 0)
+  }
+
   return (
-    <Card id="shrink" className="scroll-mt-24">
-      <CardContent className="flex flex-col gap-5">
-        <FileInput allowMultiple onFileChange={enqueue} />
-        {items.length > 0 ? (
-          <ul aria-live="polite" className="flex flex-col gap-3">
-            {items.map((item) => (
-              <li key={item.id} className="rounded-lg border border-border bg-background px-4 py-3">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-foreground">{item.file.name}</p>
-                    <p className="mt-1 font-mono text-xs text-muted-foreground">
-                      {formatMegabytes(item.file.size)}
-                      {item.result && !item.result.passthrough
-                        ? ` → ${formatMegabytes(item.result.outputBytes)}`
-                        : ""}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant="outline">{typeLabel(acceptedType(item.file) ?? item.file.type)}</Badge>
-                    {item.status === "queued" ? <Badge variant="secondary">Queued</Badge> : null}
-                    {item.status === "working" ? (
-                      <Badge>
-                        <Spinner className="size-3" />
-                        Shrinking
+    <div
+      id="shrink"
+      className="scroll-mt-24 rounded-2xl border border-border bg-card p-3 shadow-[0_30px_60px_-30px_rgba(0,0,0,0.6)] sm:p-4"
+    >
+      <FileInput allowMultiple onFileChange={enqueue} />
+      {items.length > 0 ? (
+        <ul aria-live="polite" className="mt-3 grid gap-2">
+          {items.map((item) => (
+            <li
+              key={item.id}
+              className="grid grid-cols-[44px_1fr_auto] items-center gap-3 rounded-[10px] border border-border bg-surface-2 p-2.5 sm:px-3"
+            >
+              <ResultThumb url={item.thumbUrl} name={item.file.name} />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-foreground">
+                  {item.file.name}
+                </p>
+                <div className="meta mt-0.5 flex flex-wrap items-center gap-2 text-[12.5px] text-muted-foreground">
+                  {item.status === "done" && item.result && !item.result.passthrough ? (
+                    <>
+                      <span className="font-mono text-xs tabular-nums">
+                        {formatMegabytes(item.file.size)}
+                      </span>
+                      <span className="text-ok-text" aria-hidden="true">
+                        →
+                      </span>
+                      <span className="font-mono text-xs tabular-nums text-foreground">
+                        {formatMegabytes(item.result.outputBytes)}
+                      </span>
+                      <Badge variant="ready">Ready</Badge>
+                    </>
+                  ) : null}
+                  {item.status === "done" && item.result?.passthrough ? (
+                    <>
+                      <span className="font-mono text-xs tabular-nums">
+                        {formatMegabytes(item.file.size)}
+                      </span>
+                      <span>Already fits — unchanged</span>
+                    </>
+                  ) : null}
+                  {item.status === "queued" ? (
+                    <>
+                      <span className="font-mono text-xs tabular-nums">
+                        {formatMegabytes(item.file.size)}
+                      </span>
+                      <Badge variant="queued">Queued</Badge>
+                    </>
+                  ) : null}
+                  {item.status === "working" ? (
+                    <>
+                      <span className="font-mono text-xs tabular-nums">
+                        {formatMegabytes(item.file.size)}
+                      </span>
+                      <Badge variant="shrinking">
+                        Shrinking · {Math.max(1, Math.round(item.progress))}%
                       </Badge>
-                    ) : null}
-                    {item.status === "done" && item.result?.passthrough ? (
-                      <Badge variant="secondary">Already fits</Badge>
-                    ) : null}
-                    {item.status === "done" && item.result && !item.result.passthrough ? (
-                      <Badge>Ready</Badge>
-                    ) : null}
-                    {item.status === "error" ? <Badge variant="destructive">Failed</Badge> : null}
-                    {item.status === "working" ? (
-                      <OrbitalLoadingRing size={36} variant="minimal" label="Shrinking image" />
-                    ) : null}
-                    {item.status === "done" && item.downloadUrl && item.result ? (
-                      <Button
-                        type="button"
-                        onClick={() => {
-                          const anchor = document.createElement("a")
-                          anchor.href = item.downloadUrl!
-                          anchor.download = item.result!.fileName
-                          anchor.click()
-                        }}
-                      >
-                        Download
-                      </Button>
-                    ) : null}
-                  </div>
+                    </>
+                  ) : null}
+                  {item.status === "error" ? (
+                    <>
+                      <span className="font-mono text-xs tabular-nums">
+                        {formatMegabytes(item.file.size)}
+                      </span>
+                      <Badge variant="destructive">Failed</Badge>
+                    </>
+                  ) : null}
+                  {item.status === "done" && item.result ? (
+                    <Badge variant="outline" className="hidden sm:inline-flex">
+                      {typeLabel(item.result.outputType)}
+                    </Badge>
+                  ) : null}
                 </div>
                 {item.status === "working" ? (
-                  <Progress value={item.progress} className="mt-3" aria-label="Shrink progress" />
+                  <Progress
+                    value={item.progress}
+                    className="mt-1.5 h-1 rounded bg-[#33363d] [&>[data-slot=progress-indicator]]:bg-brand"
+                    aria-label="Shrink progress"
+                  />
                 ) : null}
-                {item.status === "error" ? (
-                  <Alert variant="destructive" className="mt-3">
-                    <AlertTitle>Could not shrink</AlertTitle>
-                    <AlertDescription>{item.error}</AlertDescription>
-                  </Alert>
+              </div>
+              <div className="flex shrink-0 items-center gap-1.5 self-start sm:self-center">
+                {item.status === "done" && item.downloadUrl && item.result ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={item.result.passthrough ? "outline" : "default"}
+                    className="hidden sm:inline-flex"
+                    onClick={() => downloadOne(item)}
+                  >
+                    Download
+                  </Button>
                 ) : null}
-                {item.result?.convertedFromPng ? (
-                  <Alert className="mt-3">
-                    <AlertTitle>PNG saved as JPEG</AlertTitle>
-                    <AlertDescription>
-                      {item.result.flattenedTransparency
-                        ? "Transparency was flattened onto white so the file could get under 19.5 MB."
-                        : "PNG can't be shrunk with a quality setting, so it was converted."}
-                    </AlertDescription>
-                  </Alert>
-                ) : null}
-                {item.result?.scaled && !item.result.missedTarget ? (
-                  <p className="mt-3 font-mono text-xs text-muted-foreground">
-                    Scaled to {item.result.width}×{item.result.height} after quality alone was still too big.
-                  </p>
-                ) : null}
-                {item.result?.missedTarget ? (
-                  <Alert variant="destructive" className="mt-3">
-                    <AlertTitle>Still over 19.5 MB</AlertTitle>
-                    <AlertDescription>
-                      This is the smallest file the browser could make, at {formatMegabytes(item.result.outputBytes)}.
-                    </AlertDescription>
-                  </Alert>
-                ) : null}
-                {item.result?.passthrough ? (
-                  <p className="mt-3 text-sm text-muted-foreground">
-                    Already under 20 MB. The original file is ready to download.
-                  </p>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        ) : null}
-      </CardContent>
-    </Card>
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant="ghost"
+                  className="text-muted-foreground hover:text-foreground"
+                  aria-label={`Remove ${item.file.name}`}
+                  onClick={() => removeItem(item.id)}
+                >
+                  <X className="size-4" />
+                </Button>
+              </div>
+              {item.status === "done" && item.downloadUrl && item.result ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={item.result.passthrough ? "outline" : "default"}
+                  className="col-span-3 w-full sm:hidden"
+                  onClick={() => downloadOne(item)}
+                >
+                  Download
+                </Button>
+              ) : null}
+              {item.status === "error" ? (
+                <div className="col-span-3 flex items-start gap-2 border-t border-border pt-2 text-[12.5px] text-destructive sm:col-start-2 sm:col-span-2">
+                  <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                  <span>{item.error}</span>
+                </div>
+              ) : null}
+              {item.result?.flattenedTransparency ? (
+                <div className="col-span-3 border-t border-border pt-2 text-[12.5px] text-muted-foreground sm:col-start-2 sm:col-span-2">
+                  <span className="font-semibold text-warn">Saved as JPEG.</span> Transparency was
+                  flattened onto white so the file could get under 19.5 MB.
+                </div>
+              ) : item.result?.convertedFromPng ? (
+                <div className="col-span-3 border-t border-border pt-2 text-[12.5px] text-muted-foreground sm:col-start-2 sm:col-span-2">
+                  <span className="font-semibold text-warn">Saved as JPEG.</span> PNG can&apos;t be
+                  shrunk with a quality setting, so it was converted.
+                </div>
+              ) : null}
+              {item.result?.scaled && !item.result.missedTarget ? (
+                <p className="col-span-3 border-t border-border pt-2 font-mono text-xs text-muted-foreground sm:col-start-2 sm:col-span-2">
+                  Scaled to {item.result.width}×{item.result.height} after quality alone was still
+                  too big.
+                </p>
+              ) : null}
+              {item.result?.missedTarget ? (
+                <div className="col-span-3 flex items-start gap-2 border-t border-border pt-2 text-[12.5px] text-destructive sm:col-start-2 sm:col-span-2">
+                  <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                  <span>
+                    Still over 19.5 MB — smallest the browser could make is{" "}
+                    {formatMegabytes(item.result.outputBytes)}.
+                  </span>
+                </div>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {items.length > 0 ? (
+        <div className="mt-3 flex flex-col items-start justify-between gap-2 px-1 pt-1 text-[13px] text-muted-foreground sm:flex-row sm:items-center">
+          <span>
+            Files are saved with <code>-discord</code> in the name.
+          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" size="sm" variant="ghost" onClick={clearAll}>
+              Clear all
+            </Button>
+            {downloadable.length > 0 ? (
+              <Button type="button" size="sm" variant="outline" onClick={() => void downloadAll()}>
+                Download all ({downloadable.length})
+              </Button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+    </div>
   )
 }

@@ -2,10 +2,9 @@
 
 import { acceptedType } from "@/lib/limits"
 import { cn } from "@/lib/utils"
-import { ImageIcon } from "lucide-react"
+import { AlertCircle, Upload } from "lucide-react"
 import { motion } from "motion/react"
 import { useId, useRef, useState } from "react"
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 
 type FileInputProps = {
   accept?: string
@@ -44,8 +43,8 @@ export default function FileInput({
   return (
     <div
       className={cn(
-        "relative min-h-56 rounded-lg border border-dashed bg-muted transition-colors",
-        isDragOver ? "border-primary bg-primary/10" : "border-border hover:border-accent",
+        "relative rounded-xl border-[1.5px] border-dashed bg-[linear-gradient(180deg,rgba(88,101,242,0.06),transparent_70%)] px-4 py-9 text-center transition-colors sm:px-6",
+        isDragOver ? "border-brand bg-[rgba(88,101,242,0.12)]" : "border-[#4a4e57] hover:border-brand/60",
       )}
       onDragOver={(event) => {
         event.preventDefault()
@@ -73,27 +72,30 @@ export default function FileInput({
           event.target.value = ""
         }}
       />
-      <Empty className="min-h-56 border-0">
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <ImageIcon />
-          </EmptyMedia>
-          <EmptyTitle className="text-base font-semibold tracking-[-0.01em]">
-            Drop images over 20 MB
-          </EmptyTitle>
-          <EmptyDescription>
-            JPEG, PNG, and WebP. Files already at or under 20 MB stay as they are.
-          </EmptyDescription>
-        </EmptyHeader>
-        <label
-          htmlFor={inputId}
-          className="inline-flex h-10 cursor-pointer items-center justify-center rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-[#4752c4]"
-        >
-          Choose images
-        </label>
-      </Empty>
+      <div className="mx-auto mb-3.5 grid size-[52px] place-items-center rounded-[14px] bg-[rgba(88,101,242,0.15)]">
+        <Upload className="size-[26px] text-brand-text" aria-hidden="true" strokeWidth={2} />
+      </div>
+      <h3 className="text-lg font-bold tracking-[-0.01em] text-foreground">
+        Drop images over 20 MB
+      </h3>
+      <p className="mt-1 text-sm text-muted-foreground">
+        JPEG, PNG, or WebP · multiple files OK
+      </p>
+      <label
+        htmlFor={inputId}
+        className="mt-[18px] inline-flex h-11 w-full cursor-pointer items-center justify-center rounded-[10px] bg-primary px-5 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-[#3c45a5] sm:w-auto"
+      >
+        Choose images
+      </label>
+      <p className="mt-3 text-[12.5px] text-muted-foreground">
+        Files at or under 20 MB are returned unchanged.
+      </p>
       {error ? (
-        <p role="alert" className="px-6 pb-5 text-center text-sm text-destructive">
+        <p
+          role="alert"
+          className="mt-3 inline-flex items-center justify-center gap-1.5 text-sm text-destructive"
+        >
+          <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
           {error}
         </p>
       ) : null}
@@ -101,9 +103,9 @@ export default function FileInput({
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="absolute inset-0 flex items-center justify-center rounded-lg bg-background/80"
+          className="absolute inset-0 flex items-center justify-center rounded-xl bg-background/80"
         >
-          <p className="font-mono text-sm text-primary">Drop to shrink</p>
+          <p className="font-mono text-sm text-brand-text">Drop to shrink</p>
         </motion.div>
       ) : null}
     </div>
