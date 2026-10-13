@@ -48,7 +48,6 @@ async function makeThumbUrl(file: File): Promise<string | undefined> {
   try {
     const bitmap = await createImageBitmap(file, {
       resizeWidth: 88,
-      resizeHeight: 88,
       resizeQuality: "low",
     })
     const canvas = document.createElement("canvas")
@@ -84,9 +83,10 @@ export function Compressor() {
   const urls = useRef<string[]>([])
 
   useEffect(() => {
-    const created = urls.current
+    const tracked = urls
     return () => {
-      for (const url of created) URL.revokeObjectURL(url)
+      // Read the live ref at unmount so Remove/Clear updates are included.
+      for (const url of tracked.current) URL.revokeObjectURL(url)
     }
   }, [])
 
@@ -118,12 +118,19 @@ export function Compressor() {
 
         try {
           const result = await runShrink(current.file, (progress) => {
+            if (!itemsRef.current.some((entry) => entry.id === current.id)) return
             update(current.id, { progress })
           })
           const downloadUrl = URL.createObjectURL(result.blob)
+          const stillPresent = itemsRef.current.some((entry) => entry.id === current.id)
+          if (!stillPresent) {
+            URL.revokeObjectURL(downloadUrl)
+            continue
+          }
           urls.current.push(downloadUrl)
           update(current.id, { status: "done", progress: 100, result, downloadUrl })
         } catch (error) {
+          if (!itemsRef.current.some((entry) => entry.id === current.id)) continue
           update(current.id, {
             status: "error",
             progress: 0,
@@ -219,7 +226,7 @@ export function Compressor() {
     anchor.href = url
     anchor.download = "shrinkcord-discord.zip"
     anchor.click()
-    URL.revokeObjectURL(url)
+    setTimeout(() => URL.revokeObjectURL(url), 0)
   }
 
   return (
