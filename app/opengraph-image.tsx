@@ -66,13 +66,13 @@ export default function OpenGraphImage() {
           >
             <div style={{ display: "flex" }}>Get any image under</div>
             <div style={{ display: "flex" }}>
-              <span>Discord&apos;s&nbsp;</span>
+              <span>Discord’s&nbsp;</span>
               <span style={{ color: "#949cf7" }}>20 MB</span>
               <span>&nbsp;limit.</span>
             </div>
           </div>
           <div style={{ display: "flex", marginTop: 28, fontSize: 28, color: "#a3a9b2" }}>
-            Over 20 MB down to 19.5 MB. In the browser. Nothing uploaded.
+            Over 20 MB down to 19.5 MB. In the browser. Nothing is uploaded.
           </div>
         </div>
       </div>

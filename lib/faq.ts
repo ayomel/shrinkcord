@@ -3,7 +3,7 @@ export const faqs = [
     id: "why-19-5",
     question: "Why 19.5 MB instead of 20?",
     answer:
-      "Discord's free upload limit is 20 MB, and the developer changelog counts that as 20 MiB: 20 × 1024 × 1024 bytes. Shrinkcord stops at 19.5 MiB so a file that looks close to the line still clears it.",
+      "Discord's free upload limit is 20 MB. The developer changelog counts that as 20 MiB (20 × 1024 × 1024 bytes). Shrinkcord stops at 19.5 MiB so a file near the line still clears the check.",
   },
   {
     id: "upload",
@@ -15,13 +15,13 @@ export const faqs = [
     id: "formats",
     question: "Which image formats work?",
     answer:
-      "JPEG, PNG, and WebP. GIF, HEIC, and video are left alone with an error so a different file type is not quietly flattened.",
+      "JPEG, PNG, and WebP. GIF, HEIC, and video get an error instead of a quiet conversion.",
   },
   {
     id: "png",
     question: "What happens to a PNG?",
     answer:
-      "PNG is lossless, so a quality slider cannot shrink it. Opaque PNGs are re-encoded as JPEG. PNGs with transparency try a WebP that keeps the alpha first; if that is still too large, the image is flattened onto white and saved as JPEG, and the row says so.",
+      "PNG is lossless, so a quality slider cannot shrink it. Opaque PNGs become JPEG. PNGs with transparency try a WebP that keeps the alpha first. If that is still too large, the image is flattened onto white and saved as JPEG, and the row says so.",
   },
   {
     id: "already-small",
@@ -33,6 +33,6 @@ export const faqs = [
     id: "still-rejected",
     question: "Will Discord still reject the file?",
     answer:
-      "Discord checks the file size before its own compression. A result at or under 19.5 MiB is under the free 20 MiB cap. Nitro and server boosts allow larger files, but this tool is aimed at the free limit.",
+      "Discord checks the file size before its own compression. A result at or under 19.5 MiB is under the free 20 MiB cap. Nitro and server boosts allow larger files. This tool targets the free limit.",
   },
 ] as const

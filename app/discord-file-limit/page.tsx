@@ -95,9 +95,9 @@ export default function DiscordFileLimitPage() {
         Discord file size limit
       </h1>
       <p className="mt-5 text-base leading-relaxed text-muted-foreground">
-        A free Discord account can attach 20 MB per file. That number changed in August 2026, up
-        from 10 MB, and it is the reason Shrinkcord targets 19.5 MB. The figures below are taken
-        from Discord&apos;s own help center, not from older roundups.
+        A free Discord account can attach 20 MB per file. That number rose from 10 MB in August
+        2026, which is why Shrinkcord targets 19.5 MB. The figures below come from Discord&apos;s
+        help center, not older roundups.
       </p>
 
       <div className="mt-8 overflow-hidden rounded-[14px] border border-border bg-card">
@@ -146,14 +146,14 @@ export default function DiscordFileLimitPage() {
       </h2>
       <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
         Discord&apos;s File Attachments FAQ says non-Nitro members can upload 20 MB, and that the
-        free limit rose from 10 MB in August 2026. The same note says desktop and mobile now check
-        the limit the same way: the size is measured before Discord compresses the file. A photo
-        that your phone would have squeezed down after you hit send can now be rejected up front.
+        free limit rose from 10 MB in August 2026. Desktop and mobile now measure the size before
+        Discord compresses the file. A photo your phone would have squeezed after send can now be
+        rejected up front.
       </p>
       <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
         Discord&apos;s developer changelog records the same change as 20 MiB, which is 20 × 1024 ×
-        1024 bytes, not 20,000,000. Shrinkcord uses that binary reading. An image at 19.5 MiB is
-        about half a megabyte under the line the client checks.
+        1024 bytes, not 20,000,000. Shrinkcord uses that binary reading. An image at 19.5 MiB sits
+        0.5 MiB under the line the client checks.
       </p>
 
       <h2 className="mt-12 text-[clamp(1.75rem,3vw,2.25rem)] leading-[1.05] font-bold tracking-[-0.03em]">
@@ -163,9 +163,9 @@ export default function DiscordFileLimitPage() {
         Discord&apos;s account caps article still lists a 10 MB file sharing limit for the base
         plan, and 500 MB for Nitro. That table disagrees with the File Attachments FAQ and with
         the Nitro perk page, which lists 50 MB for Nitro Basic and up to 1 GB for Nitro. When
-        those pages conflict, Shrinkcord follows the File Attachments FAQ, because that is the
-        page Discord updated to explain the August 2026 change. Treat the older caps table as
-        stale until Discord edits it.
+        those pages conflict, Shrinkcord follows the File Attachments FAQ, the page Discord
+        updated for the August 2026 change. Treat the older caps table as stale until Discord
+        edits it.
       </p>
 
       <h2
@@ -176,10 +176,10 @@ export default function DiscordFileLimitPage() {
       </h2>
       <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
         Nitro Basic raises your own uploads to 50 MB. Nitro raises them to 1 GB. Those limits
-        travel with the account into servers and direct messages. A server boost is different: level
-        2 lets everyone in that server attach 50 MB, and level 3 lets them attach 100 MB, but only
-        while they are posting inside the boosted server. Leave for a DM, or for a server that is
-        not boosted, and a free account is back at 20 MB.
+        travel with the account into servers and direct messages. A server boost is different.
+        Level 2 lets everyone in that server attach 50 MB, and level 3 lets them attach 100 MB, but
+        only while they are posting inside the boosted server. Leave for a DM, or for a server that
+        is not boosted, and a free account is back at 20 MB.
       </p>
 
       <h2
@@ -189,16 +189,15 @@ export default function DiscordFileLimitPage() {
         Images hit the cap before Discord compresses them
       </h2>
       <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-        The FAQ calls out a practical consequence of checking size first. Desktop and iOS uploads
-        got easier for a lot of people when the number moved from 10 MB to 20 MB. On Android, source
-        photos are often larger, so the higher printed number can still reject a picture that used
-        to sneak through after Discord compressed it. If the file on disk is over 20 MB, the free
-        client can refuse it before any of that happens.
+        Checking size first changed desktop and iOS uploads when the cap moved from 10 MB to 20 MB.
+        On Android, source photos are often larger, so the higher printed number can still reject a
+        picture that used to pass after Discord compressed it. If the file on disk is over 20 MB,
+        the free client can refuse it before compression runs.
       </p>
       <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-        That is the case Shrinkcord is for. Drop a JPEG, PNG, or WebP that is over 20 MB. The tool
-        lowers quality first and only then scales the pixels, and it stops at 19.5 MB. Files that
-        already fit are not touched. The work happens in the browser.
+        That is what Shrinkcord is for. Drop a JPEG, PNG, or WebP over 20 MB. The tool lowers
+        quality first, scales pixels only if needed, and stops at 19.5 MB. Files that already fit
+        are not touched. The work happens in the browser.
       </p>
 
       <div className="mt-12 flex flex-col items-start gap-4 rounded-[14px] border border-border bg-card p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">

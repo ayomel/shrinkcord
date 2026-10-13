@@ -267,7 +267,7 @@ export function Compressor() {
                       <span className="font-mono text-xs tabular-nums">
                         {formatMegabytes(item.file.size)}
                       </span>
-                      <span>Already fits — unchanged</span>
+                      <span>Already fits, unchanged</span>
                     </>
                   ) : null}
                   {item.status === "queued" ? (
@@ -352,13 +352,13 @@ export function Compressor() {
               ) : null}
               {item.result?.flattenedTransparency ? (
                 <div className="col-span-3 border-t border-border pt-2 text-[12.5px] text-muted-foreground sm:col-start-2 sm:col-span-2">
-                  <span className="font-semibold text-warn">Saved as JPEG.</span> Transparency was
-                  flattened onto white so the file could get under 19.5 MB.
+                  Saved as JPEG. Transparency was flattened onto white so the file could get under
+                  19.5 MB.
                 </div>
               ) : item.result?.convertedFromPng ? (
                 <div className="col-span-3 border-t border-border pt-2 text-[12.5px] text-muted-foreground sm:col-start-2 sm:col-span-2">
-                  <span className="font-semibold text-warn">Saved as JPEG.</span> PNG can&apos;t be
-                  shrunk with a quality setting, so it was converted.
+                  Saved as JPEG. PNG can&apos;t be shrunk with a quality setting, so it was
+                  converted.
                 </div>
               ) : null}
               {item.result?.scaled && !item.result.missedTarget ? (
@@ -371,7 +371,7 @@ export function Compressor() {
                 <div className="col-span-3 flex items-start gap-2 border-t border-border pt-2 text-[12.5px] text-destructive sm:col-start-2 sm:col-span-2">
                   <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
                   <span>
-                    Still over 19.5 MB — smallest the browser could make is{" "}
+                    Still over 19.5 MB. Smallest the browser could make is{" "}
                     {formatMegabytes(item.result.outputBytes)}.
                   </span>
                 </div>

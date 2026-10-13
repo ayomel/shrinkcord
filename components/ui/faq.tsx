@@ -16,31 +16,30 @@ export interface FAQItem {
 }
 
 export interface FAQProps {
-  /** List of FAQ items */
+  /** FAQ entries to render */
   items: FAQItem[];
-  /** Allow multiple items to be expanded simultaneously */
+  /** Open more than one item at once */
   allowMultiple?: boolean;
-  /** Initial open item IDs (uncontrolled) */
+  /** Initially open item ids when uncontrolled */
   defaultOpen?: string[] | string;
-  /** Explicit open item IDs (controlled) */
+  /** Open item ids when controlled */
   openIds?: string[];
-  /** Callback fired when open items change */
+  /** Called when the open set changes */
   onOpenChange?: (ids: string[]) => void;
-  /** Visual indicator icon style: chevron or plus-minus */
+  /** Chevron, plus/minus, or a custom icon */
   iconStyle?: 'chevron' | 'plus-minus' | 'custom';
-  /** Custom open/closed icon renderer */
+  /** Custom open/closed icon */
   renderIcon?: (isOpen: boolean) => React.ReactNode;
-  /** Enable search filter bar */
+  /** Show a search filter */
   searchable?: boolean;
-  /** Placeholder text for search bar */
+  /** Search input placeholder */
   searchPlaceholder?: string;
-  /** Enable category filter tabs */
+  /** Show category filter tabs */
   showCategories?: boolean;
-  /** Card visual layout presentation: single card container or separated individual cards */
+  /** One card for all items, or a card per item */
   variant?: 'unified' | 'separated';
-  /** Additional container styling */
   className?: string;
-  /** Additional list styling (applies to the items wrapper) */
+  /** Class for the items wrapper */
   listClassName?: string;
 }
 
