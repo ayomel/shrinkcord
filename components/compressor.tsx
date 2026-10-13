@@ -161,7 +161,9 @@ export function Compressor() {
                   <Alert className="mt-3">
                     <AlertTitle>PNG saved as JPEG</AlertTitle>
                     <AlertDescription>
-                      Transparency was flattened onto white so the file could get under 19.5 MB.
+                      {item.result.flattenedTransparency
+                        ? "Transparency was flattened onto white so the file could get under 19.5 MB."
+                        : "PNG can't be shrunk with a quality setting, so it was converted."}
                     </AlertDescription>
                   </Alert>
                 ) : null}

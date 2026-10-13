@@ -3,18 +3,24 @@ import {
   MAX_QUALITY,
   MIN_QUALITY,
   MIN_SHORT_EDGE,
-  SCALE_STEP,
+  MIN_TRANSPARENT_WEBP_QUALITY,
+  QUALITY_SEARCH_MAX_STEPS,
+  QUALITY_TARGET_TOLERANCE,
   TARGET_BYTES,
   acceptedType,
   outputFileName,
   type AcceptedType,
 } from "@/lib/limits"
+import { preferTransparentWebp } from "@/lib/output-strategy"
+import { fileHasTransparency } from "@/lib/png-alpha"
+import { scaleForTarget, searchQualityBySize } from "@/lib/search-quality"
 
 export type ShrinkResult = {
   blob: Blob
   fileName: string
   outputType: string
   convertedFromPng: boolean
+  flattenedTransparency: boolean
   passthrough: boolean
   scaled: boolean
   missedTarget: boolean
@@ -25,6 +31,12 @@ export type ShrinkResult = {
 }
 
 type EncodeType = "image/jpeg" | "image/webp"
+
+export type ScalePassResult = {
+  candidate: { blob: Blob; width: number; height: number; size: number } | null
+  scaled: boolean
+  missedTarget: boolean
+}
 
 function yieldToMain() {
   return new Promise((resolve) => {
@@ -53,6 +65,7 @@ async function encode(
   height: number,
   type: EncodeType,
   quality: number,
+  flatten: boolean,
 ) {
   const canvas: OffscreenCanvas | HTMLCanvasElement =
     typeof OffscreenCanvas !== "undefined"
@@ -65,47 +78,164 @@ async function encode(
     | null
   if (!context) throw new Error("Could not prepare this image.")
 
-  context.fillStyle = "#ffffff"
-  context.fillRect(0, 0, width, height)
+  if (flatten || type === "image/jpeg") {
+    context.fillStyle = "#ffffff"
+    context.fillRect(0, 0, width, height)
+  } else {
+    context.clearRect(0, 0, width, height)
+  }
   context.drawImage(bitmap, 0, 0, width, height)
   return canvasBlob(canvas, type, quality)
 }
 
-async function searchQuality(
+function clampScaleToMinShortEdge(bitmap: ImageBitmap, scale: number) {
+  const shortEdge = Math.min(bitmap.width, bitmap.height)
+  const minScale = MIN_SHORT_EDGE / shortEdge
+  if (shortEdge * scale < MIN_SHORT_EDGE) {
+    return Math.min(1, Math.max(minScale, scale))
+  }
+  return Math.min(1, scale)
+}
+
+async function searchAtScale(
   bitmap: ImageBitmap,
-  width: number,
-  height: number,
+  scale: number,
   type: EncodeType,
+  flatten: boolean,
   targetBytes: number,
-  report: (step: number) => void,
+  report: () => void,
+  minQuality: number,
 ) {
-  let low = MIN_QUALITY
-  let high = MAX_QUALITY
-  let bestFit: Blob | null = null
-  let smallest: Blob | null = null
+  const width = Math.max(1, Math.round(bitmap.width * scale))
+  const height = Math.max(1, Math.round(bitmap.height * scale))
 
-  for (let step = 0; step < 7; step += 1) {
-    const quality = (low + high) / 2
-    const blob = await encode(bitmap, width, height, type, quality)
-    report(1)
-    if (!smallest || blob.size < smallest.size) smallest = blob
-    if (blob.size <= targetBytes) {
-      bestFit = blob
-      low = quality
-    } else {
-      high = quality
+  const search = await searchQualityBySize(
+    async (quality) => {
+      const blob = await encode(bitmap, width, height, type, quality, flatten)
+      await yieldToMain()
+      return { size: blob.size, quality, blob }
+    },
+    targetBytes,
+    {
+      minQuality,
+      maxQuality: MAX_QUALITY,
+      maxSteps: QUALITY_SEARCH_MAX_STEPS,
+      tolerance: QUALITY_TARGET_TOLERANCE,
+      onEncode: report,
+    },
+  )
+
+  return {
+    width,
+    height,
+    bestFit: search.bestFit?.blob
+      ? { blob: search.bestFit.blob, width, height, size: search.bestFit.size }
+      : null,
+    smallest: search.smallest?.blob
+      ? { blob: search.smallest.blob, width, height, size: search.smallest.size }
+      : null,
+    encodes: search.encodes,
+  }
+}
+
+export async function shrinkWithScalePasses(
+  bitmap: ImageBitmap,
+  type: EncodeType,
+  flatten: boolean,
+  targetBytes: number,
+  report: () => void,
+  options?: { minQuality?: number },
+): Promise<ScalePassResult> {
+  const minQuality = options?.minQuality ?? MIN_QUALITY
+  let scaled = false
+  let best: { blob: Blob; width: number; height: number; size: number } | null = null
+
+  const first = await searchAtScale(
+    bitmap,
+    1,
+    type,
+    flatten,
+    targetBytes,
+    report,
+    minQuality,
+  )
+  if (first.bestFit) {
+    return { candidate: first.bestFit, scaled: false, missedTarget: false }
+  }
+  if (first.smallest) best = first.smallest
+
+  const shortEdge = Math.min(bitmap.width, bitmap.height)
+  if (shortEdge <= MIN_SHORT_EDGE || !first.smallest) {
+    return {
+      candidate: best,
+      scaled: false,
+      missedTarget: !best || best.size > targetBytes,
     }
-    await yieldToMain()
   }
 
-  if (!bestFit) {
-    const floor = await encode(bitmap, width, height, type, MIN_QUALITY)
-    report(1)
-    if (!smallest || floor.size < smallest.size) smallest = floor
-    if (floor.size <= targetBytes) bestFit = floor
+  let scale = clampScaleToMinShortEdge(
+    bitmap,
+    scaleForTarget(targetBytes, first.smallest.size),
+  )
+  if (scale >= 0.999) {
+    return {
+      candidate: best,
+      scaled: false,
+      missedTarget: !best || best.size > targetBytes,
+    }
+  }
+  scaled = true
+
+  const second = await searchAtScale(
+    bitmap,
+    scale,
+    type,
+    flatten,
+    targetBytes,
+    report,
+    minQuality,
+  )
+  if (second.bestFit) {
+    return { candidate: second.bestFit, scaled: true, missedTarget: false }
+  }
+  if (second.smallest && (!best || second.smallest.size < best.size)) {
+    best = second.smallest
   }
 
-  return { bestFit, smallest }
+  // One corrective pass if still over target.
+  if (second.smallest && second.smallest.size > targetBytes) {
+    const corrected = clampScaleToMinShortEdge(
+      bitmap,
+      scale * scaleForTarget(targetBytes, second.smallest.size),
+    )
+    if (
+      corrected < scale - 0.001 &&
+      Math.min(bitmap.width, bitmap.height) * corrected >= MIN_SHORT_EDGE - 0.5
+    ) {
+      scale = corrected
+      const third = await searchAtScale(
+        bitmap,
+        scale,
+        type,
+        flatten,
+        targetBytes,
+        report,
+        minQuality,
+      )
+      if (third.bestFit) {
+        return { candidate: third.bestFit, scaled: true, missedTarget: false }
+      }
+      if (third.smallest && (!best || third.smallest.size < best.size)) {
+        best = third.smallest
+      }
+    }
+  }
+
+  return {
+    candidate: best,
+    scaled,
+    missedTarget: !best || best.size > targetBytes,
+  }
 }
 
 export async function compressFile(
@@ -125,6 +255,7 @@ export async function compressFile(
       fileName: outputFileName(file.name, file.type, true),
       outputType: inputType,
       convertedFromPng: false,
+      flattenedTransparency: false,
       passthrough: true,
       scaled: false,
       missedTarget: false,
@@ -136,84 +267,88 @@ export async function compressFile(
   }
 
   const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" })
-  let outputType: EncodeType = inputType === "image/webp" ? "image/webp" : "image/jpeg"
-  const convertedFromPng = inputType === "image/png"
-  let steps = 0
+  const hasTransparency =
+    inputType === "image/png" ? await fileHasTransparency(file, bitmap) : false
+
+  let encodes = 0
+  // Transparent PNGs get a full WebP scale-pass budget before JPEG flatten passes.
+  const passBudget = 1 + QUALITY_SEARCH_MAX_STEPS
+  const encodeBudget = (hasTransparency ? passBudget * 3 : 0) + passBudget * 3
   const report = () => {
-    steps += 1
-    onProgress?.(Math.min(95, Math.round((steps / 40) * 100)))
+    encodes += 1
+    onProgress?.(Math.min(95, Math.round((encodes / encodeBudget) * 100)))
   }
 
   try {
-    let scale = 1
-    let scaled = false
-    let best: { blob: Blob; width: number; height: number } | null = null
-
-    for (let attempt = 0; attempt < 14; attempt += 1) {
-      const width = Math.max(1, Math.round(bitmap.width * scale))
-      const height = Math.max(1, Math.round(bitmap.height * scale))
-      const shortEdge = Math.min(width, height)
-
-      let search
+    // Transparent PNGs: keep alpha via WebP (including scaled passes) before JPEG flatten.
+    if (hasTransparency) {
       try {
-        search = await searchQuality(bitmap, width, height, outputType, targetBytes, report)
-      } catch (error) {
-        if (outputType !== "image/webp") throw error
-        outputType = "image/jpeg"
-        search = await searchQuality(bitmap, width, height, outputType, targetBytes, report)
-      }
-
-      const candidate = search.bestFit ?? search.smallest
-      if (candidate && (!best || candidate.size < best.blob.size)) {
-        best = { blob: candidate, width, height }
-      }
-
-      if (search.bestFit) {
-        onProgress?.(100)
-        return {
-          blob: search.bestFit,
-          fileName: outputFileName(file.name, outputType, false),
-          outputType,
-          convertedFromPng,
-          passthrough: false,
-          scaled,
-          missedTarget: false,
-          originalBytes: file.size,
-          outputBytes: search.bestFit.size,
-          width,
-          height,
+        const webp = await shrinkWithScalePasses(
+          bitmap,
+          "image/webp",
+          false,
+          targetBytes,
+          report,
+          { minQuality: MIN_TRANSPARENT_WEBP_QUALITY },
+        )
+        if (preferTransparentWebp(webp) && webp.candidate) {
+          onProgress?.(100)
+          return {
+            blob: webp.candidate.blob,
+            fileName: outputFileName(file.name, "image/webp", false),
+            outputType: "image/webp",
+            convertedFromPng: false,
+            flattenedTransparency: false,
+            passthrough: false,
+            scaled: webp.scaled,
+            missedTarget: false,
+            originalBytes: file.size,
+            outputBytes: webp.candidate.size,
+            width: webp.candidate.width,
+            height: webp.candidate.height,
+          }
         }
+      } catch {
+        // Fall through to JPEG flatten if WebP encode is unavailable.
       }
-
-      if (shortEdge <= MIN_SHORT_EDGE) break
-
-      const nextScale = scale * SCALE_STEP
-      const nextShort = Math.min(bitmap.width, bitmap.height) * nextScale
-      if (nextShort < MIN_SHORT_EDGE) {
-        const clamped = MIN_SHORT_EDGE / Math.min(bitmap.width, bitmap.height)
-        if (clamped >= scale - 0.001) break
-        scale = clamped
-      } else {
-        scale = nextScale
-      }
-      scaled = true
     }
 
-    if (!best) throw new Error("Could not shrink this image.")
+    let outputType: EncodeType = inputType === "image/webp" ? "image/webp" : "image/jpeg"
+    const flatten = hasTransparency || inputType === "image/png"
+    const convertedFromPng = inputType === "image/png"
+    const flattenedTransparency = hasTransparency
+
+    let result
+    try {
+      result = await shrinkWithScalePasses(
+        bitmap,
+        outputType,
+        flatten || outputType === "image/jpeg",
+        targetBytes,
+        report,
+      )
+    } catch (error) {
+      if (outputType !== "image/webp") throw error
+      outputType = "image/jpeg"
+      result = await shrinkWithScalePasses(bitmap, outputType, true, targetBytes, report)
+    }
+
+    if (!result.candidate) throw new Error("Could not shrink this image.")
 
     onProgress?.(100)
     return {
-      blob: best.blob,
+      blob: result.candidate.blob,
       fileName: outputFileName(file.name, outputType, false),
       outputType,
-      convertedFromPng,
+      convertedFromPng: convertedFromPng && outputType === "image/jpeg",
+      flattenedTransparency: flattenedTransparency && outputType === "image/jpeg",
       passthrough: false,
-      scaled,
-      missedTarget: best.blob.size > targetBytes,
+      scaled: result.scaled,
+      missedTarget: result.missedTarget,
       originalBytes: file.size,
-      outputBytes: best.blob.size,
-      width: best.width,
-      height: best.height,
+      outputBytes: result.candidate.size,
+      width: result.candidate.width,
+      height: result.candidate.height,
     }
   } finally {
     bitmap.close()

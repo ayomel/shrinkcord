@@ -21,7 +21,7 @@ export const faqs = [
     id: "png",
     question: "What happens to a PNG?",
     answer:
-      "PNG is lossless, so a quality slider cannot shrink it. Shrinkcord flattens the image onto white and saves a JPEG. Transparency becomes white, and the row says so.",
+      "PNG is lossless, so a quality slider cannot shrink it. Opaque PNGs are re-encoded as JPEG. PNGs with transparency try a WebP that keeps the alpha first; if that is still too large, the image is flattened onto white and saved as JPEG, and the row says so.",
   },
   {
     id: "already-small",
