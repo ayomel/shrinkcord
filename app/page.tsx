@@ -31,8 +31,8 @@ const proofs = [
     rest: "Size only shrinks if it still has to.",
   },
   {
-    lead: "Files at or under 20 MB",
-    rest: "are returned unchanged.",
+    lead: "Files at or under 20 MB.",
+    rest: "They are returned unchanged.",
   },
 ]
 

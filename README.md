@@ -12,8 +12,8 @@ Discord’s free cap is 20 MB, documented as 20 MiB (20 × 1024 × 1024 bytes). 
 
 1. Pick or drop one or more images (JPEG, PNG, WebP).
 2. Each file over 20 MiB is decoded in the tab. Quality starts at 1.0 and searches down toward 19.5 MiB. Dimensions scale only if quality 0.5 is still too large.
-3. Opaque PNGs become JPEG. PNGs with transparency try WebP (alpha preserved), including scaled passes at quality ≥ 0.8. If that still exceeds the budget, they are flattened onto white and saved as JPEG.
-4. Download the result. Shrunk files are named `your-photo-discord.jpg` (or `.webp` when the output stays WebP).
+3. Opaque PNGs become JPEG. PNGs with transparency try WebP, including scaled passes at quality 0.8 or higher. If that still exceeds the budget, they are flattened onto white and saved as JPEG.
+4. Download the result. Shrunk files are named `your-photo-discord.jpg` or `.webp` when the output stays WebP.
 
 Processing runs in a Web Worker when the browser supports it, with a main-thread fallback.
 

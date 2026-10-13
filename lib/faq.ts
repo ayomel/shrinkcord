@@ -3,7 +3,7 @@ export const faqs = [
     id: "why-19-5",
     question: "Why 19.5 MB instead of 20?",
     answer:
-      "Discord's free upload limit is 20 MB. The developer changelog counts that as 20 MiB (20 × 1024 × 1024 bytes). Shrinkcord stops at 19.5 MiB so a file near the line still clears the check.",
+      "Discord’s free upload limit is 20 MB. The developer changelog counts that as 20 MiB (20 × 1024 × 1024 bytes). Shrinkcord stops at 19.5 MiB so a file near the line still clears the check.",
   },
   {
     id: "upload",
@@ -21,7 +21,7 @@ export const faqs = [
     id: "png",
     question: "What happens to a PNG?",
     answer:
-      "PNG is lossless, so a quality slider cannot shrink it. Opaque PNGs become JPEG. PNGs with transparency try a WebP that keeps the alpha first. If that is still too large, the image is flattened onto white and saved as JPEG, and the row says so.",
+      "PNG is lossless, so a quality slider cannot shrink it. Opaque PNGs become JPEG. PNGs with transparency first try a WebP that keeps the alpha. If that is still too large, the image is flattened onto white and saved as JPEG, and the row says so.",
   },
   {
     id: "already-small",
