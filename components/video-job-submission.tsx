@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
+import { VideoJobResult } from "@/components/video-job-result"
 import { VideoJobStatus } from "@/components/video-job-status"
 import {
   createVideoJobAttempt,
@@ -9,6 +10,7 @@ import {
   type VideoJobAttempt,
   type VideoJobPhase,
 } from "@/lib/video-jobs"
+import type { VideoJob } from "@/lib/video-job-monitor"
 
 type VideoJobSubmissionProps = {
   file: File
@@ -16,6 +18,8 @@ type VideoJobSubmissionProps = {
   revision: number
   disabled?: boolean
   onLockChange?: (locked: boolean) => void
+  onResultVisible: (visible: boolean) => void
+  onRetryExpired: () => void
 }
 
 type SubmissionPhase = VideoJobPhase | "ready" | "error"
@@ -28,7 +32,15 @@ function phaseLabel(phase: SubmissionPhase) {
   return "Ready to submit"
 }
 
-export function VideoJobSubmission({ file, targetSizeBytes, revision, disabled = false, onLockChange }: VideoJobSubmissionProps) {
+export function VideoJobSubmission({
+  file,
+  targetSizeBytes,
+  revision,
+  disabled = false,
+  onLockChange,
+  onResultVisible,
+  onRetryExpired,
+}: VideoJobSubmissionProps) {
   const attemptRef = useRef<VideoJobAttempt | null>(null)
   const attemptRevisionRef = useRef<number | null>(null)
   const requestSequenceRef = useRef(0)
@@ -41,8 +53,12 @@ export function VideoJobSubmission({ file, targetSizeBytes, revision, disabled =
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [jobId, setJobId] = useState<string | null>(null)
+  const [completedJob, setCompletedJob] = useState<VideoJob | null>(null)
   const [retryPhase, setRetryPhase] = useState<"uploading" | "submitting">("uploading")
   const [failedRevision, setFailedRevision] = useState<number | null>(null)
+  const handleJobUpdate = useCallback((job: VideoJob) => {
+    if (job.status === "COMPLETED") setCompletedJob(job)
+  }, [])
 
   function updatePhase(nextPhase: SubmissionPhase) {
     phaseRef.current = nextPhase
@@ -150,7 +166,7 @@ export function VideoJobSubmission({ file, targetSizeBytes, revision, disabled =
     <div className="flex flex-col gap-3 border-t border-border pt-5">
       <div aria-live="polite" className="text-sm">
         {jobId
-          ? <VideoJobStatus jobId={jobId} />
+          ? <VideoJobStatus jobId={jobId} onJob={handleJobUpdate} />
           : <p className="font-medium">{phaseLabel(visiblePhase)}</p>}
         {phase === "uploading" && (
           <div className="mt-2 max-w-md">
@@ -168,6 +184,15 @@ export function VideoJobSubmission({ file, targetSizeBytes, revision, disabled =
         {showingError && error && <p className="mt-2 text-destructive" role="alert">{error}</p>}
         {jobId && <p className="mt-1 text-muted-foreground">Job ID: <code>{jobId}</code></p>}
       </div>
+      {jobId && completedJob?.id === jobId && <VideoJobResult
+        jobId={jobId}
+        inputFile={file}
+        targetSizeBytes={targetSizeBytes}
+        outputExpired={completedJob.output_expired === true}
+        outputExpiresAt={completedJob.output_expires_at}
+        onVisibleChange={onResultVisible}
+        onRetryExpired={onRetryExpired}
+      />}
       <div>
         <Button type="button" onClick={handleSubmit} disabled={submitDisabled}>
           {busy
