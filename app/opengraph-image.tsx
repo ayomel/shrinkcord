@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og"
 
-export const alt = "Shrinkcord shrinks images over 20 MB to 19.5 MB for Discord"
+export const alt = "Shrinkcord compresses images locally and MP4 videos on a server"
 export const size = { width: 1200, height: 630 }
 export const contentType = "image/png"
 
@@ -72,7 +72,7 @@ export default function OpenGraphImage() {
             </div>
           </div>
           <div style={{ display: "flex", marginTop: 28, fontSize: 28, color: "#a3a9b2" }}>
-            Over 20 MB down to 19.5 MB. In the browser. Nothing is uploaded.
+            Images compress in your browser. MP4 videos upload for server-side compression.
           </div>
         </div>
       </div>

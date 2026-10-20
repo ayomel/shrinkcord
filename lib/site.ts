@@ -17,9 +17,9 @@ function resolveSiteUrl() {
 export const site = {
   name: "Shrinkcord",
   url: resolveSiteUrl(),
-  title: "Shrink images for Discord's 20 MB limit | Shrinkcord",
+  title: "Compress images and videos for Discord | Shrinkcord",
   description:
-    "Images over 20 MB shrink to 19.5 MB or less in your browser for Discord's free upload limit. JPEG, PNG, and WebP. Nothing is uploaded.",
+    "Shrink JPEG, PNG, and WebP images on your device. Upload MP4 videos for server-side compression with a 20 MB (20,000,000-byte) default target.",
   limitTitle: "Discord file size limit in 2026",
   limitDescription:
     "Discord's free upload limit is 20 MB as of August 2026. Nitro Basic is 50 MB, Nitro is up to 1 GB, and server boosts raise the cap only inside that server.",

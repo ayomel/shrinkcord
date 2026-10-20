@@ -24,7 +24,7 @@ const steps = [
 
 const proofs = [
   {
-    lead: "Nothing is uploaded.",
+    lead: "Images stay on your device.",
     rest: "The file is decoded and re-encoded on this device.",
   },
   {
@@ -49,12 +49,8 @@ export default function Home() {
           operatingSystem: "Web",
           url: site.url,
           description: site.description,
-          offers: {
-            "@type": "Offer",
-            price: "0",
-            priceCurrency: "USD",
-          },
-          browserRequirements: "Requires a browser that can encode JPEG or WebP on a canvas.",
+          browserRequirements:
+            "Image compression uses browser canvas encoding. MP4 video compression requires a network connection to upload the video for server-side processing.",
         }}
       />
       <JsonLd
@@ -90,7 +86,7 @@ export default function Home() {
             <div className="mt-3.5 flex flex-wrap gap-3.5 text-[13px] text-muted-foreground lg:hidden">
               <span className="inline-flex items-center gap-1.5">
                 <Check className="size-3.5 text-ok-text" strokeWidth={2.4} aria-hidden="true" />
-                Nothing is uploaded
+                Images stay on your device
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <Check className="size-3.5 text-ok-text" strokeWidth={2.4} aria-hidden="true" />
