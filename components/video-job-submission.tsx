@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
+import { VideoJobStatus } from "@/components/video-job-status"
 import {
   createVideoJobAttempt,
   submitVideoJob,
@@ -148,7 +149,9 @@ export function VideoJobSubmission({ file, targetSizeBytes, revision, disabled =
   return (
     <div className="flex flex-col gap-3 border-t border-border pt-5">
       <div aria-live="polite" className="text-sm">
-        <p className="font-medium">{phaseLabel(visiblePhase)}</p>
+        {jobId
+          ? <VideoJobStatus jobId={jobId} />
+          : <p className="font-medium">{phaseLabel(visiblePhase)}</p>}
         {phase === "uploading" && (
           <div className="mt-2 max-w-md">
             <label htmlFor="video-upload-progress" className="sr-only">Video upload progress</label>
