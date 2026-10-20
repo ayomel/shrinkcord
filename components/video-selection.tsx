@@ -1,8 +1,9 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { VideoJobSubmission } from "@/components/video-job-submission"
 import {
   Card,
   CardContent,
@@ -34,6 +35,13 @@ export function VideoSelection() {
   const [targetValue, setTargetValue] = useState("20")
   const [error, setError] = useState<string | null>(null)
   const [previewError, setPreviewError] = useState(false)
+  const [submissionLocked, setSubmissionLocked] = useState(false)
+  const [submissionRevision, setSubmissionRevision] = useState(0)
+  const submissionLockedRef = useRef(false)
+  const lockSubmission = useCallback((locked: boolean) => {
+    submissionLockedRef.current = locked
+    setSubmissionLocked(locked)
+  }, [])
   const target = parseVideoTarget(targetValue)
 
   useEffect(() => {
@@ -53,6 +61,7 @@ export function VideoSelection() {
   }, [selectedFile])
 
   function acceptFiles(files: FileList | File[]) {
+    if (submissionLockedRef.current) return
     if (files.length !== 1) {
       setError("Choose one video at a time.")
       return
@@ -66,6 +75,7 @@ export function VideoSelection() {
     }
 
     setSelectedFile(file)
+    setSubmissionRevision((revision) => revision + 1)
     setError(null)
     setPreviewError(false)
   }
@@ -77,7 +87,9 @@ export function VideoSelection() {
   }
 
   function removeVideo() {
+    if (submissionLockedRef.current) return
     setSelectedFile(null)
+    setSubmissionRevision((revision) => revision + 1)
     setError(null)
     setPreviewError(false)
     if (inputRef.current) inputRef.current.value = ""
@@ -97,8 +109,8 @@ export function VideoSelection() {
               <h2 id="video-heading">Prepare a video</h2>
             </CardTitle>
             <CardDescription>
-              Select one MP4 and choose a target size. Your file stays on this device. Video upload
-              and compression are coming next.
+              Select one MP4 and choose a target size. The video uploads directly to storage before
+              the compression job is submitted.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-5">
@@ -133,6 +145,7 @@ export function VideoSelection() {
                 ref={chooseButtonRef}
                 type="button"
                 variant="outline"
+                disabled={submissionLocked}
                 onClick={() => inputRef.current?.click()}
               >
                 {selectedFile ? "Replace video" : "Choose video"}
@@ -164,7 +177,7 @@ export function VideoSelection() {
                     {formatBytes(selectedFile.size)}
                   </p>
                 </div>
-                <Button type="button" variant="outline" onClick={removeVideo}>
+                <Button type="button" variant="outline" disabled={submissionLocked} onClick={removeVideo}>
                   Remove video
                 </Button>
               </div>
@@ -182,7 +195,8 @@ export function VideoSelection() {
                 max={MAX_VIDEO_BYTES / 1_000_000}
                 step="any"
                 value={targetValue}
-                onChange={(event) => setTargetValue(event.currentTarget.value)}
+                disabled={submissionLocked}
+                onChange={(event) => { if (!submissionLockedRef.current) { setTargetValue(event.currentTarget.value); setSubmissionRevision((revision) => revision + 1) } }}
                 aria-invalid={Boolean(target.error)}
                 aria-describedby={target.error ? "video-target-error" : "video-target-help"}
                 className="mt-1.5 h-11 w-full rounded-[10px] border border-input bg-background px-3 text-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 aria-invalid:border-destructive"
@@ -202,6 +216,7 @@ export function VideoSelection() {
                 </p>
               )}
             </div>
+            {selectedFile && <VideoJobSubmission file={selectedFile} targetSizeBytes={target.bytes} revision={submissionRevision} onLockChange={lockSubmission} />}
           </CardContent>
         </Card>
       </div>
