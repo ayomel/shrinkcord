@@ -16,7 +16,7 @@ type VideoJobResultProps = {
   outputExpired: boolean
   outputExpiresAt?: string | null
   onVisibleChange: (visible: boolean) => void
-  onRetryExpired: () => void
+  onStartAnotherAttempt: () => void
 }
 
 function formatBytes(bytes: number) {
@@ -39,7 +39,7 @@ export function VideoJobResult({
   outputExpired,
   outputExpiresAt,
   onVisibleChange,
-  onRetryExpired,
+  onStartAnotherAttempt,
 }: VideoJobResultProps) {
   const [output, setOutput] = useState<VideoJobOutput | null>(null)
   const [error, setError] = useState<VideoOutputError | null>(null)
@@ -51,7 +51,7 @@ export function VideoJobResult({
   const visibleOutput = outputExpired ? null : output
   const outputExpiredNow = outputExpired || error?.expired === true
   const visibleErrorMessage = outputExpired
-    ? "This output has expired. Choose the video again to create a new compressed result."
+    ? "This output has expired. Start another attempt with this video to create a new compressed result."
     : error?.message
 
   useEffect(() => {
@@ -199,7 +199,7 @@ export function VideoJobResult({
             {visibleErrorMessage}
           </p>
           {outputExpiredNow ? (
-            <Button type="button" variant="outline" onClick={onRetryExpired}>Compress this video again</Button>
+            <Button type="button" variant="outline" onClick={onStartAnotherAttempt}>Start another attempt</Button>
           ) : error?.retryable ? (
             <Button type="button" variant="outline" onClick={() => {
               setOutput(null)

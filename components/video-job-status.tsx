@@ -1,8 +1,9 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
+  cancelVideoJob,
   monitorVideoJob,
   VideoJobMonitorError,
   type VideoJob,
@@ -20,6 +21,11 @@ type MonitorNotice = {
   retrySequence: number
 }
 
+type CancelNotice = {
+  message: string
+  jobId: string
+}
+
 const STATUS_LABELS: Record<VideoJob["status"], string> = {
   QUEUED: "Queued",
   PROCESSING: "Processing",
@@ -28,12 +34,41 @@ const STATUS_LABELS: Record<VideoJob["status"], string> = {
   CANCELED: "Canceled",
 }
 
+const TERMINAL_STATUSES = new Set<VideoJob["status"]>(["COMPLETED", "FAILED", "CANCELED"])
+
+function isTerminal(job: VideoJob | null): boolean {
+  return Boolean(job && TERMINAL_STATUSES.has(job.status))
+}
+
 export function VideoJobStatus({ jobId, onJob }: VideoJobStatusProps) {
   const [job, setJob] = useState<VideoJob | null>(null)
   const [notice, setNotice] = useState<MonitorNotice | null>(null)
   const [retrySequence, setRetrySequence] = useState(0)
+  const [cancelingJobId, setCancelingJobId] = useState<string | null>(null)
+  const [cancelNotice, setCancelNotice] = useState<CancelNotice | null>(null)
+  const jobRef = useRef<VideoJob | null>(null)
+  const cancelControllerRef = useRef<AbortController | null>(null)
+  const cancelSequenceRef = useRef(0)
   const currentJob = job?.id === jobId ? job : null
   const currentNotice = notice?.jobId === jobId && notice.retrySequence === retrySequence ? notice : null
+  const currentCancelNotice = cancelNotice?.jobId === jobId ? cancelNotice : null
+  const cancelPending = cancelingJobId === jobId
+  const canCancel = currentJob?.status === "QUEUED" || currentJob?.status === "PROCESSING"
+
+  function reportJob(nextJob: VideoJob) {
+    const previous = jobRef.current
+    if (previous?.id === nextJob.id && isTerminal(previous)) return
+
+    jobRef.current = nextJob
+    setJob(nextJob)
+    if (isTerminal(nextJob)) {
+      setCancelingJobId(null)
+      setCancelNotice(null)
+    }
+    onJob?.(nextJob)
+  }
+
+  const reportCurrentJob = useCallback(reportJob, [onJob])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -43,9 +78,8 @@ export function VideoJobStatus({ jobId, onJob }: VideoJobStatusProps) {
       signal: controller.signal,
       onJob: (nextJob) => {
         if (!active || controller.signal.aborted) return
-        setJob(nextJob)
         setNotice(null)
-        onJob?.(nextJob)
+        reportCurrentJob(nextJob)
       },
       onError: (error) => {
         if (!active || controller.signal.aborted) return
@@ -63,7 +97,42 @@ export function VideoJobStatus({ jobId, onJob }: VideoJobStatusProps) {
       active = false
       controller.abort()
     }
-  }, [jobId, retrySequence, onJob])
+  }, [jobId, retrySequence, reportCurrentJob])
+
+  useEffect(() => () => {
+    cancelSequenceRef.current += 1
+    cancelControllerRef.current?.abort()
+    cancelControllerRef.current = null
+    setCancelingJobId(null)
+  }, [jobId])
+
+  async function handleCancel() {
+    if (!canCancel || cancelControllerRef.current) return
+
+    const requestSequence = ++cancelSequenceRef.current
+    const controller = new AbortController()
+    cancelControllerRef.current = controller
+    setCancelingJobId(jobId)
+    setCancelNotice(null)
+
+    try {
+      const latest = await cancelVideoJob(jobId, controller.signal)
+      if (requestSequence !== cancelSequenceRef.current || controller.signal.aborted) return
+      reportCurrentJob(latest)
+      if (isTerminal(jobRef.current?.id === jobId ? jobRef.current : null)) {
+        setCancelingJobId(null)
+      }
+    } catch {
+      if (requestSequence !== cancelSequenceRef.current || controller.signal.aborted) return
+      setCancelingJobId(null)
+      setCancelNotice({
+        message: "Cancellation could not be confirmed. Try again or keep checking status.",
+        jobId,
+      })
+    } finally {
+      if (cancelControllerRef.current === controller) cancelControllerRef.current = null
+    }
+  }
 
   const progress = currentJob
     ? currentJob.status === "COMPLETED" ? 100 : Math.min(currentJob.progress, 99)
@@ -90,6 +159,19 @@ export function VideoJobStatus({ jobId, onJob }: VideoJobStatusProps) {
         </div>
       )}
       {failureMessage && <p className="text-destructive" role="alert">{failureMessage}</p>}
+      {canCancel && (
+        <div className="flex flex-col items-start gap-2">
+          <Button type="button" variant="outline" onClick={handleCancel} disabled={cancelPending}>
+            {cancelPending ? "Canceling compression…" : currentCancelNotice ? "Retry cancellation" : "Cancel compression"}
+          </Button>
+          {cancelPending && (
+            <p className="text-sm text-muted-foreground" role="status">
+              Waiting for the job to stop. Its status will continue updating.
+            </p>
+          )}
+          {currentCancelNotice && <p className="text-sm text-destructive" role="alert">{currentCancelNotice.message}</p>}
+        </div>
+      )}
       {currentNotice && (
         <div className="flex flex-col items-start gap-2">
           <p

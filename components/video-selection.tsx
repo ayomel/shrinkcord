@@ -29,6 +29,7 @@ function formatBytes(bytes: number) {
 
 export function VideoSelection() {
   const inputRef = useRef<HTMLInputElement>(null)
+  const targetInputRef = useRef<HTMLInputElement>(null)
   const chooseButtonRef = useRef<HTMLButtonElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -44,10 +45,12 @@ export function VideoSelection() {
     setSubmissionLocked(locked)
   }, [])
   const onResultVisible = useCallback((visible: boolean) => setResultVisible(visible), [])
-  const handleRetryExpired = useCallback(() => {
+  const handleStartAnotherAttempt = useCallback(() => {
     setSubmissionRevision((revision) => revision + 1)
     setResultVisible(false)
+    setError(null)
     lockSubmission(false)
+    requestAnimationFrame(() => targetInputRef.current?.focus())
   }, [lockSubmission])
   const target = parseVideoTarget(targetValue)
 
@@ -197,6 +200,7 @@ export function VideoSelection() {
                 Target size (MB)
               </label>
               <input
+                ref={targetInputRef}
                 id="video-target"
                 type="number"
                 inputMode="decimal"
@@ -205,7 +209,7 @@ export function VideoSelection() {
                 step="any"
                 value={targetValue}
                 disabled={submissionLocked}
-                onChange={(event) => { if (!submissionLockedRef.current) { setTargetValue(event.currentTarget.value); setSubmissionRevision((revision) => revision + 1) } }}
+                onChange={(event) => { if (!submissionLockedRef.current) { setTargetValue(event.currentTarget.value); setSubmissionRevision((revision) => revision + 1); setResultVisible(false) } }}
                 aria-invalid={Boolean(target.error)}
                 aria-describedby={target.error ? "video-target-error" : "video-target-help"}
                 className="mt-1.5 h-11 w-full rounded-[10px] border border-input bg-background px-3 text-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 aria-invalid:border-destructive"
@@ -232,7 +236,7 @@ export function VideoSelection() {
               revision={submissionRevision}
               onLockChange={lockSubmission}
               onResultVisible={onResultVisible}
-              onRetryExpired={handleRetryExpired}
+              onStartAnotherAttempt={handleStartAnotherAttempt}
             />}
           </CardContent>
         </Card>

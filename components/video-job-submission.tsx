@@ -19,7 +19,7 @@ type VideoJobSubmissionProps = {
   disabled?: boolean
   onLockChange?: (locked: boolean) => void
   onResultVisible: (visible: boolean) => void
-  onRetryExpired: () => void
+  onStartAnotherAttempt: () => void
 }
 
 type SubmissionPhase = VideoJobPhase | "ready" | "error"
@@ -39,7 +39,7 @@ export function VideoJobSubmission({
   disabled = false,
   onLockChange,
   onResultVisible,
-  onRetryExpired,
+  onStartAnotherAttempt,
 }: VideoJobSubmissionProps) {
   const attemptRef = useRef<VideoJobAttempt | null>(null)
   const attemptRevisionRef = useRef<number | null>(null)
@@ -47,18 +47,27 @@ export function VideoJobSubmission({
   const needsRecoveryRef = useRef(false)
   const phaseRef = useRef<SubmissionPhase>("ready")
   const activeRef = useRef(false)
+  const locallyCancelingUploadRef = useRef(false)
   const controllerRef = useRef<AbortController | null>(null)
   const mountedRef = useRef(false)
   const [phase, setPhase] = useState<SubmissionPhase>("ready")
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
+  const [submissionUncertain, setSubmissionUncertain] = useState(false)
+  const [uploadCanceling, setUploadCanceling] = useState(false)
   const [jobId, setJobId] = useState<string | null>(null)
+  const [jobStatus, setJobStatus] = useState<VideoJob["status"] | null>(null)
   const [completedJob, setCompletedJob] = useState<VideoJob | null>(null)
   const [retryPhase, setRetryPhase] = useState<"uploading" | "submitting">("uploading")
   const [failedRevision, setFailedRevision] = useState<number | null>(null)
   const handleJobUpdate = useCallback((job: VideoJob) => {
+    setJobStatus(job.status)
     if (job.status === "COMPLETED") setCompletedJob(job)
-  }, [])
+    if (job.status === "COMPLETED" || job.status === "FAILED" || job.status === "CANCELED") {
+      setSubmissionUncertain(false)
+      onLockChange?.(false)
+    }
+  }, [onLockChange])
 
   function updatePhase(nextPhase: SubmissionPhase) {
     phaseRef.current = nextPhase
@@ -70,13 +79,19 @@ export function VideoJobSubmission({
     if (needsRecoveryRef.current) {
       needsRecoveryRef.current = false
       activeRef.current = false
+      setUploadCanceling(false)
       if (attemptRef.current?.jobId) {
         setJobId(attemptRef.current.jobId)
         updatePhase("queued")
       } else if (attemptRevisionRef.current !== null) {
         setFailedRevision(attemptRevisionRef.current)
         setRetryPhase(phaseRef.current === "uploading" ? "uploading" : "submitting")
-        setError("The request was interrupted. You can retry when you are ready.")
+        const uncertain = phaseRef.current === "submitting"
+        setSubmissionUncertain(uncertain)
+        if (uncertain) onLockChange?.(true)
+        setError(uncertain
+          ? "The job response was interrupted. Retry submission to recover the job using the same request key; your video and target are locked until then."
+          : "The request was interrupted. You can retry when you are ready.")
         updatePhase("error")
       } else {
         updatePhase("ready")
@@ -93,7 +108,7 @@ export function VideoJobSubmission({
         requestSequenceRef.current += 1
       }
     }
-  }, [])
+  }, [onLockChange])
 
   async function handleSubmit() {
     if (activeRef.current || disabled || targetSizeBytes === null || jobId) return
@@ -109,13 +124,15 @@ export function VideoJobSubmission({
 
     activeRef.current = true
     onLockChange?.(true)
+    locallyCancelingUploadRef.current = false
     const controller = new AbortController()
     controllerRef.current = controller
     const requestSequence = ++requestSequenceRef.current
     setProgress(0)
     setError(null)
     setFailedRevision(null)
-    updatePhase("uploading")
+    setUploadCanceling(false)
+    updatePhase(attempt.inputKey ? "submitting" : "uploading")
 
     try {
       const result = await submitVideoJob({
@@ -133,33 +150,52 @@ export function VideoJobSubmission({
         },
       })
       if (mountedRef.current && requestSequence === requestSequenceRef.current) {
+        setSubmissionUncertain(false)
         setJobId(result.jobId)
+        setJobStatus("QUEUED")
         updatePhase("queued")
       }
     } catch (caught) {
-      if (mountedRef.current && requestSequence === requestSequenceRef.current
-        && !(caught instanceof DOMException && caught.name === "AbortError")) {
+      if (mountedRef.current && requestSequence === requestSequenceRef.current) {
+        const wasAborted = caught instanceof DOMException && caught.name === "AbortError"
+        const uploadCanceled = wasAborted && locallyCancelingUploadRef.current
+        const uncertain = phaseRef.current === "submitting" && !uploadCanceled
+        if (uploadCanceled) {
+          locallyCancelingUploadRef.current = false
+          setUploadCanceling(false)
+        }
+        if (uncertain) setSubmissionUncertain(true)
         setFailedRevision(revision)
-        setRetryPhase(phaseRef.current === "uploading" ? "uploading" : "submitting")
-        setError(caught instanceof Error ? caught.message : "Could not submit this video. Try again.")
+        setRetryPhase(uploadCanceled || phaseRef.current === "uploading" ? "uploading" : "submitting")
+        setError(uploadCanceled
+          ? "Upload canceled. Retry the upload when you are ready."
+          : uncertain
+            ? "The job response could not be confirmed. Retry submission to recover the job using the same request key; your video and target are locked until then."
+            : wasAborted
+              ? "The request was interrupted. You can retry when you are ready."
+              : caught instanceof Error ? caught.message : "Could not submit this video. Try again.")
         updatePhase("error")
       }
     } finally {
       if (requestSequence === requestSequenceRef.current) activeRef.current = false
       if (controllerRef.current === controller) controllerRef.current = null
-      if (mountedRef.current && requestSequence === requestSequenceRef.current && controller.signal.aborted) {
-        setFailedRevision(revision)
-        setRetryPhase(phaseRef.current === "uploading" ? "uploading" : "submitting")
-        setError("The request was interrupted. You can retry when you are ready.")
-        updatePhase("error")
-      }
     }
+  }
+
+  function handleCancelUpload() {
+    if (phaseRef.current !== "uploading" || !controllerRef.current) return
+    locallyCancelingUploadRef.current = true
+    setUploadCanceling(true)
+    controllerRef.current.abort()
   }
 
   const busy = phase === "uploading" || phase === "submitting"
   const showingError = phase === "error" && failedRevision === revision
   const visiblePhase = phase === "error" && !showingError ? "ready" : phase
-  useEffect(() => { onLockChange?.(busy || Boolean(jobId)) }, [busy, jobId, onLockChange])
+  const jobIsTerminal = jobStatus === "COMPLETED" || jobStatus === "FAILED" || jobStatus === "CANCELED"
+  useEffect(() => {
+    onLockChange?.(busy || (Boolean(jobId) && !jobIsTerminal) || submissionUncertain)
+  }, [busy, jobId, jobIsTerminal, submissionUncertain, onLockChange])
   const submitDisabled = disabled || targetSizeBytes === null || busy || Boolean(jobId)
 
   return (
@@ -191,16 +227,28 @@ export function VideoJobSubmission({
         outputExpired={completedJob.output_expired === true}
         outputExpiresAt={completedJob.output_expires_at}
         onVisibleChange={onResultVisible}
-        onRetryExpired={onRetryExpired}
+        onStartAnotherAttempt={onStartAnotherAttempt}
       />}
       <div>
-        <Button type="button" onClick={handleSubmit} disabled={submitDisabled}>
-          {busy
-            ? phase === "uploading" ? "Uploading…" : "Submitting…"
-            : showingError
-              ? retryPhase === "uploading" ? "Retry upload" : "Retry submission"
-              : "Upload and compress"}
-        </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button type="button" onClick={handleSubmit} disabled={submitDisabled}>
+            {busy
+              ? phase === "uploading" ? "Uploading…" : "Submitting…"
+              : showingError
+                ? retryPhase === "uploading" ? "Retry upload" : "Retry submission"
+                : "Upload and compress"}
+          </Button>
+          {busy && phase === "uploading" && (
+            <Button type="button" variant="outline" onClick={handleCancelUpload} disabled={uploadCanceling}>
+              {uploadCanceling ? "Canceling upload…" : "Cancel upload"}
+            </Button>
+          )}
+          {jobId && jobIsTerminal && (
+            <Button type="button" variant="outline" onClick={onStartAnotherAttempt}>
+              Start another attempt
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   )
