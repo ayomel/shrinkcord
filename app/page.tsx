@@ -1,4 +1,5 @@
 import { Compressor } from "@/components/compressor"
+import { VideoSelection } from "@/components/video-selection"
 import { JsonLd } from "@/components/json-ld"
 import { FAQ } from "@/components/ui/faq"
 import { faqs } from "@/lib/faq"
@@ -119,6 +120,8 @@ export default function Home() {
           <Compressor />
         </div>
       </section>
+
+      <VideoSelection />
 
       <section id="how" className="scroll-mt-24 border-t border-border">
         <div className="mx-auto w-full max-w-[1160px] px-[18px] py-12 sm:px-8 lg:py-[72px]">
