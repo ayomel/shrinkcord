@@ -37,15 +37,22 @@ export function VideoSelection() {
   const [previewError, setPreviewError] = useState(false)
   const [submissionLocked, setSubmissionLocked] = useState(false)
   const [submissionRevision, setSubmissionRevision] = useState(0)
+  const [resultVisible, setResultVisible] = useState(false)
   const submissionLockedRef = useRef(false)
   const lockSubmission = useCallback((locked: boolean) => {
     submissionLockedRef.current = locked
     setSubmissionLocked(locked)
   }, [])
+  const onResultVisible = useCallback((visible: boolean) => setResultVisible(visible), [])
+  const handleRetryExpired = useCallback(() => {
+    setSubmissionRevision((revision) => revision + 1)
+    setResultVisible(false)
+    lockSubmission(false)
+  }, [lockSubmission])
   const target = parseVideoTarget(targetValue)
 
   useEffect(() => {
-    if (!selectedFile || !videoRef.current) return
+    if (!selectedFile || resultVisible || !videoRef.current) return
 
     const previewUrl = URL.createObjectURL(selectedFile)
     const video = videoRef.current
@@ -58,7 +65,7 @@ export function VideoSelection() {
       video.load()
       URL.revokeObjectURL(previewUrl)
     }
-  }, [selectedFile])
+  }, [selectedFile, resultVisible])
 
   function acceptFiles(files: FileList | File[]) {
     if (submissionLockedRef.current) return
@@ -76,6 +83,7 @@ export function VideoSelection() {
 
     setSelectedFile(file)
     setSubmissionRevision((revision) => revision + 1)
+    setResultVisible(false)
     setError(null)
     setPreviewError(false)
   }
@@ -90,6 +98,7 @@ export function VideoSelection() {
     if (submissionLockedRef.current) return
     setSelectedFile(null)
     setSubmissionRevision((revision) => revision + 1)
+    setResultVisible(false)
     setError(null)
     setPreviewError(false)
     if (inputRef.current) inputRef.current.value = ""
@@ -152,7 +161,7 @@ export function VideoSelection() {
               </Button>
             </div>
 
-            {selectedFile && (
+            {selectedFile && !resultVisible && (
               <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
                 <div className="min-w-0">
                   <video
@@ -216,7 +225,15 @@ export function VideoSelection() {
                 </p>
               )}
             </div>
-            {selectedFile && <VideoJobSubmission file={selectedFile} targetSizeBytes={target.bytes} revision={submissionRevision} onLockChange={lockSubmission} />}
+            {selectedFile && <VideoJobSubmission
+              key={submissionRevision}
+              file={selectedFile}
+              targetSizeBytes={target.bytes}
+              revision={submissionRevision}
+              onLockChange={lockSubmission}
+              onResultVisible={onResultVisible}
+              onRetryExpired={handleRetryExpired}
+            />}
           </CardContent>
         </Card>
       </div>
