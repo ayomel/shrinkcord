@@ -9,13 +9,19 @@ export const faqs = [
     id: "upload",
     question: "Does Shrinkcord upload my image?",
     answer:
-      "No. The file is decoded and re-encoded in this tab. It is not sent to a server, and nothing is stored.",
+      "No. Image compression decodes and re-encodes the file in your browser. MP4 video compression is separate and uploads the selected video for server-side processing.",
   },
   {
     id: "formats",
     question: "Which image formats work?",
     answer:
-      "JPEG, PNG, and WebP. GIF, HEIC, and video get an error instead of a quiet conversion.",
+      "Local image compression supports JPEG, PNG, and WebP. MP4 videos use the separate server-side compression tool. GIF and HEIC images are not supported.",
+  },
+  {
+    id: "video",
+    question: "What happens when I compress an MP4?",
+    answer:
+      "Shrinkcord uploads the MP4 to storage and processes it in a server-side job. The input limit is 524,288,000 bytes (500 MiB), and the default target is 20 MB (20,000,000 bytes). Video files use temporary storage. Output availability can expire, and Shrinkcord does not promise a fixed retention period here.",
   },
   {
     id: "png",
