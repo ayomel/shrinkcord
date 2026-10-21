@@ -18,16 +18,18 @@ export function buildStorageResultPresentation(input: {
   storageExpiresAt?: string | null
   storageNotSaved?: boolean
   storagePassthrough?: boolean
+  now?: Date
 }): StorageResultPresentation | null {
+  const now = input.now ?? new Date()
   if (input.storagePassthrough) {
     return { kind: "not_saved", note: STORAGE_ALREADY_FITS_NOTE }
   }
   if (input.storageDownloadUrl?.trim()) {
-    if (input.storageExpiresAt && isStorageLinkExpired(input.storageExpiresAt)) {
+    if (input.storageExpiresAt && isStorageLinkExpired(input.storageExpiresAt, now)) {
       return { kind: "not_saved", note: STORAGE_LINK_EXPIRED_NOTE }
     }
     const availabilityLabel = input.storageExpiresAt
-      ? formatStorageAvailabilityLabel(input.storageExpiresAt)
+      ? formatStorageAvailabilityLabel(input.storageExpiresAt, now)
       : "Available until link expires"
     return {
       kind: "saved",

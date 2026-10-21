@@ -2,6 +2,8 @@ import { normalizeApiBaseUrl } from "@/lib/shrinkcord-api-url"
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000
 
+export const SHRINKCORD_STORAGE_RETENTION_DAYS = 7
+
 /** Resolve storage URLs against the API origin when the server returns a relative path. */
 export function resolveShrinkcordStorageUrl(url: string, apiBaseUrl: string): string {
   const trimmed = url.trim()
@@ -25,7 +27,10 @@ export function formatStorageAvailabilityLabel(expiresAt: string, now: Date = ne
 
   if (msLeft < MS_PER_DAY) return "Available for less than a day"
 
-  const wholeDays = Math.ceil(msLeft / MS_PER_DAY)
+  const wholeDays = Math.min(
+    SHRINKCORD_STORAGE_RETENTION_DAYS,
+    Math.ceil(msLeft / MS_PER_DAY),
+  )
   if (wholeDays >= 2) return `Available for ${wholeDays} days`
   return "Available for 1 day"
 }
