@@ -55,7 +55,7 @@ export function VideoJobStatus({ jobId, onJob }: VideoJobStatusProps) {
   const cancelPending = cancelingJobId === jobId
   const canCancel = currentJob?.status === "QUEUED" || currentJob?.status === "PROCESSING"
 
-  function reportJob(nextJob: VideoJob) {
+  const reportCurrentJob = useCallback((nextJob: VideoJob) => {
     const previous = jobRef.current
     if (previous?.id === nextJob.id && isTerminal(previous)) return
 
@@ -66,9 +66,7 @@ export function VideoJobStatus({ jobId, onJob }: VideoJobStatusProps) {
       setCancelNotice(null)
     }
     onJob?.(nextJob)
-  }
-
-  const reportCurrentJob = useCallback(reportJob, [onJob])
+  }, [onJob])
 
   useEffect(() => {
     const controller = new AbortController()
