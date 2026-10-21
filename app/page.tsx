@@ -1,5 +1,4 @@
 import { Compressor } from "@/components/compressor"
-import { VideoSelection } from "@/components/video-selection"
 import { JsonLd } from "@/components/json-ld"
 import { FAQ } from "@/components/ui/faq"
 import { faqs } from "@/lib/faq"
@@ -9,16 +8,16 @@ import Link from "next/link"
 
 const steps = [
   {
-    title: "Drop the image",
-    copy: "JPEG, PNG, or WebP. Several files run one at a time so the tab stays responsive.",
+    title: "Drop images or videos",
+    copy: "JPEG, PNG, WebP, MP4, or MOV. Images and videos each run one at a time so the tab stays responsive.",
   },
   {
-    title: "Small files stay as they are",
-    copy: "Anything at or under 20 MB is returned unchanged. Only larger files are re-encoded.",
+    title: "Images stay local",
+    copy: "Large images re-encode in your browser. Images at or under 20 MiB are returned unchanged.",
   },
   {
     title: "Download and send",
-    copy: "The result is 19.5 MB or under, named with -discord, ready for Discord’s free upload.",
+    copy: "The result is 19.5 MB or under, named with -discord, ready for Discord's free upload.",
   },
 ]
 
@@ -32,8 +31,8 @@ const proofs = [
     rest: "Size only shrinks if it still has to.",
   },
   {
-    lead: "Files at or under 20 MB",
-    rest: "are returned unchanged.",
+    lead: "Videos upload to Shrinkcord.",
+    rest: "Server-side compression; outputs are removed after download or about an hour.",
   },
 ]
 
@@ -72,16 +71,16 @@ export default function Home() {
         <div className="grid items-center gap-6 lg:grid-cols-[1fr_1.05fr] lg:gap-14">
           <div>
             <span className="inline-flex items-center gap-2 rounded-full border border-[rgba(88,101,242,0.3)] bg-[rgba(88,101,242,0.12)] px-2.5 py-1 text-[13px] font-semibold text-brand-text">
-              For Discord’s free 20 MB upload limit
+              For Discord&apos;s free 20 MB upload limit
             </span>
             <h1 className="mt-3.5 text-[36px] leading-[1.05] font-extrabold tracking-[-0.035em] text-foreground lg:mt-5 lg:text-[54px]">
-              Get any image under Discord’s{" "}
+              Get any image under Discord&apos;s{" "}
               <em className="not-italic text-brand-text">20&nbsp;MB</em> limit.
             </h1>
             <p className="lede mt-3 max-w-[30em] text-base text-muted-foreground lg:mt-[18px] lg:text-lg">
-              Drop a JPEG, PNG, or WebP over 20 MB. Shrinkcord re-encodes it to{" "}
-              <b className="font-semibold text-foreground">19.5 MB or less</b>, right in your
-              browser. Smaller files are left untouched.
+              Drop images or MP4/MOV videos. Images stay on your device; large ones re-encode to
+              19.5 MiB or less in the browser. Videos upload to the Shrinkcord server for
+              compression under Discord&apos;s limit.
             </p>
             <div className="mt-3.5 flex flex-wrap gap-3.5 text-[13px] text-muted-foreground lg:hidden">
               <span className="inline-flex items-center gap-1.5">
@@ -117,8 +116,6 @@ export default function Home() {
         </div>
       </section>
 
-      <VideoSelection />
-
       <section id="how" className="scroll-mt-24 border-t border-border">
         <div className="mx-auto w-full max-w-[1160px] px-[18px] py-12 sm:px-8 lg:py-[72px]">
           <div className="mb-6 flex flex-col justify-between gap-2 lg:mb-8 lg:flex-row lg:items-end lg:gap-6">
@@ -143,7 +140,7 @@ export default function Home() {
                   {step.copy.includes("-discord") ? (
                     <>
                       The result is 19.5 MB or under, named with <code>-discord</code>, ready for
-                      Discord’s free upload.
+                      Discord&apos;s free upload.
                     </>
                   ) : (
                     step.copy

@@ -21,7 +21,7 @@ export const faqs = [
     id: "video",
     question: "What happens when I compress an MP4?",
     answer:
-      "Shrinkcord uploads the MP4 to storage and processes it in a server-side job. The input limit is 524,288,000 bytes (500 MiB), and the default target is 20 MB (20,000,000 bytes). Video files use temporary storage. Output availability can expire, and Shrinkcord does not promise a fixed retention period here.",
+      "Shrinkcord uploads MP4 or MOV videos directly to the compression API and processes them in a server-side job. The input limit is 524,288,000 bytes (500 MiB) and 10 minutes when your browser can read duration metadata. The default target is 20 MB (20,000,000 bytes). Completed outputs are available until you download them or they expire on the server.",
   },
   {
     id: "png",

@@ -1,5 +1,0 @@
-simulation: api-connection
-routing: path
-mocks:
-  - routeKey: shrinkcord
-    path: ../mocks/shrinkcord/default.cjs

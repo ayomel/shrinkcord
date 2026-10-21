@@ -5,11 +5,12 @@ export const DEFAULT_VIDEO_TARGET_BYTES = 20_000_000
 export type VideoFileInfo = Pick<File, "name" | "type" | "size">
 
 export function validateVideoFile(file: VideoFileInfo): string | null {
-  if (file.size <= 0) return "This video file is empty. Choose a non-empty MP4."
-  if (file.size > MAX_VIDEO_BYTES) return "Choose an MP4 video that is 524.288 MB (500 MiB) or smaller."
+  if (file.size <= 0) return "This video file is empty. Choose a non-empty MP4 or MOV."
+  if (file.size > MAX_VIDEO_BYTES) return "Choose a video that is 524.288 MiB (500 MiB) or smaller."
 
   const isMp4 = file.type === "video/mp4" || (file.type === "" && /\.mp4$/i.test(file.name))
-  if (!isMp4) return "Choose an MP4 video file."
+  const isMov = file.type === "video/quicktime" || (file.type === "" && /\.mov$/i.test(file.name))
+  if (!isMp4 && !isMov) return "Choose an MP4 or iPhone MOV video file."
 
   return null
 }
