@@ -771,14 +771,18 @@ function ImageItemMeta({ item }: { item: ImageQueueItem }) {
   return (
     <>
       <div className="meta mt-0.5 flex flex-wrap items-center gap-2 text-[12.5px] text-muted-foreground">
-        {item.status === "done" && item.result && !item.result.passthrough && !item.storageUploadInProgress ? (
+        {item.status === "done" && item.result && !item.result.passthrough ? (
           <>
             <span className="font-mono text-xs tabular-nums">{formatMegabytes(item.file.size)}</span>
             <span className="text-ok-text" aria-hidden="true">→</span>
             <span className="font-mono text-xs tabular-nums text-foreground">
               {formatMegabytes(item.result.outputBytes)}
             </span>
-            <Badge variant="ready">Ready</Badge>
+            {item.storageUploadInProgress ? (
+              <Badge variant="shrinking">Saving online · {Math.min(item.uploadProgress ?? 0, 99)}%</Badge>
+            ) : (
+              <Badge variant="ready">Ready</Badge>
+            )}
           </>
         ) : null}
         {item.status === "done" && item.result?.passthrough ? (
@@ -798,9 +802,6 @@ function ImageItemMeta({ item }: { item: ImageQueueItem }) {
             <span className="font-mono text-xs tabular-nums">{formatMegabytes(item.file.size)}</span>
             <Badge variant="shrinking">Shrinking · {progressValue}%</Badge>
           </>
-        ) : null}
-        {item.status === "done" && item.storageUploadInProgress ? (
-          <Badge variant="shrinking">Saving online · {Math.min(item.uploadProgress ?? 0, 99)}%</Badge>
         ) : null}
         {item.status === "error" ? (
           <>

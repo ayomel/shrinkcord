@@ -23,8 +23,15 @@ export function formatStorageAvailabilityLabel(expiresAt: string, now: Date = ne
   const msLeft = expiresMs - now.getTime()
   if (msLeft <= 0) return "Link expired"
 
-  const wholeDays = Math.floor(msLeft / MS_PER_DAY)
+  if (msLeft < MS_PER_DAY) return "Available for less than a day"
+
+  const wholeDays = Math.ceil(msLeft / MS_PER_DAY)
   if (wholeDays >= 2) return `Available for ${wholeDays} days`
-  if (wholeDays === 1) return "Available for 1 day"
-  return "Available for less than a day"
+  return "Available for 1 day"
+}
+
+export function isStorageLinkExpired(expiresAt: string, now: Date = new Date()): boolean {
+  const expiresMs = Date.parse(expiresAt)
+  if (!Number.isFinite(expiresMs)) return false
+  return expiresMs <= now.getTime()
 }
