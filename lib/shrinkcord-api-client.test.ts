@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import {
   cancelShrinkcordJob,
+  extractErrorMessage,
   mapHttpStatusToError,
   parseRetryAfterMs,
   uploadJobWithXhr,
@@ -28,8 +29,30 @@ describe("mapHttpStatusToError", () => {
     assert.equal(mapHttpStatusToError(413, "").message, "Choose a video that is 524.288 MiB (500 MiB) or smaller.")
   })
 
-  it("refines 400 errors from message text when status alone is ambiguous", () => {
-    assert.equal(mapHttpStatusToError(400, '{"message":"duration exceeds limit"}').code, "too_long")
+  it("maps 409 from HTTP status before body shape", () => {
+    const legacy = mapHttpStatusToError(409, JSON.stringify({ message: "already done", status: 409 }))
+    const nest = mapHttpStatusToError(
+      409,
+      JSON.stringify({ message: "already done", error: "Conflict", statusCode: 409 }),
+    )
+    assert.equal(legacy.message, "This job already finished.")
+    assert.equal(nest.message, "This job already finished.")
+  })
+
+  it("refines 400 errors from legacy { message, status } bodies", () => {
+    const body = JSON.stringify({ message: "duration exceeds limit", status: 400 })
+    assert.equal(mapHttpStatusToError(400, body).code, "too_long")
+    assert.equal(extractErrorMessage(body), "duration exceeds limit")
+  })
+
+  it("refines 400 errors from Nest { message, error, statusCode } bodies", () => {
+    const body = JSON.stringify({
+      message: "duration exceeds limit",
+      error: "Bad Request",
+      statusCode: 400,
+    })
+    assert.equal(mapHttpStatusToError(400, body).code, "too_long")
+    assert.equal(extractErrorMessage(body), "duration exceeds limit")
   })
 })
 

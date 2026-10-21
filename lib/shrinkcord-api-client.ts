@@ -184,23 +184,31 @@ function map400Error(bodyText: string): ShrinkcordApiError {
   )
 }
 
-function extractErrorMessage(bodyText: string): string {
+/** Nest: { message, error, statusCode }. Legacy API: { message, status }. HTTP status is mapped separately. */
+export function extractErrorMessage(bodyText: string): string {
   try {
     const parsed: unknown = JSON.parse(bodyText)
     if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
       const record = parsed as Record<string, unknown>
-      for (const field of ["message", "detail", "error"]) {
-        const value = record[field]
-        if (typeof value === "string" && value.trim()) return value.trim().slice(0, 240)
-        if (Array.isArray(value) && value.every((item) => typeof item === "string")) {
-          return value.join(" ").slice(0, 240)
-        }
-      }
+      const fromMessage = readApiErrorTextField(record.message)
+      if (fromMessage) return fromMessage.slice(0, 240)
+      const fromDetail = readApiErrorTextField(record.detail)
+      if (fromDetail) return fromDetail.slice(0, 240)
+      const fromError = readApiErrorTextField(record.error)
+      if (fromError) return fromError.slice(0, 240)
     }
   } catch {
     // ignore
   }
   return bodyText.trim().slice(0, 240)
+}
+
+function readApiErrorTextField(value: unknown): string | null {
+  if (typeof value === "string" && value.trim()) return value.trim()
+  if (Array.isArray(value) && value.length > 0 && value.every((item) => typeof item === "string")) {
+    return value.join(" ").trim()
+  }
+  return null
 }
 
 function parseProgress(value: unknown): number {
