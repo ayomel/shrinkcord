@@ -1,4 +1,8 @@
+"use client"
+
 import { buildStorageResultPresentation } from "@/lib/storage-result-copy"
+import { scheduleStorageLinkExpiryRefresh } from "@/lib/storage-link-expiry-refresh"
+import { useEffect, useState } from "react"
 
 type StorageResultNoteProps = {
   storageDownloadUrl?: string | null
@@ -15,11 +19,21 @@ export function StorageResultNote({
   storagePassthrough = false,
   className = "col-span-3 border-t border-border pt-2 text-[12.5px] text-muted-foreground sm:col-start-2 sm:col-span-2",
 }: StorageResultNoteProps) {
+  const [availabilityNow, setAvailabilityNow] = useState(() => new Date())
+
+  useEffect(() => {
+    if (!storageExpiresAt?.trim()) return
+    return scheduleStorageLinkExpiryRefresh(storageExpiresAt, () => {
+      setAvailabilityNow(new Date())
+    })
+  }, [storageExpiresAt])
+
   const presentation = buildStorageResultPresentation({
     storageDownloadUrl,
     storageExpiresAt,
     storageNotSaved,
     storagePassthrough,
+    now: availabilityNow,
   })
   if (!presentation) return null
 
