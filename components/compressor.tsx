@@ -29,7 +29,7 @@ import { zipSync } from "fflate"
 import { AlertCircle, X } from "lucide-react"
 import { useCallback, useEffect, useRef, useState, type MutableRefObject } from "react"
 
-type ImageItemStatus = "queued" | "working" | "uploading" | "done" | "error"
+type ImageItemStatus = "queued" | "working" | "done" | "error"
 
 type ImageQueueItem = {
   kind: "image"
@@ -38,11 +38,14 @@ type ImageQueueItem = {
   status: ImageItemStatus
   progress: number
   uploadProgress?: number
+  storageUploadInProgress?: boolean
   error?: string
   result?: ShrinkResult
   downloadUrl?: string
   storageDownloadUrl?: string
+  storageExpiresAt?: string
   storageNotSaved?: boolean
+  storagePassthrough?: boolean
   thumbUrl?: string
 }
 
@@ -72,6 +75,7 @@ type VideoQueueItem = {
   outputBytes?: number
   downloadUrl?: string
   storageDownloadUrl?: string
+  storageExpiresAt?: string
   storageNotSaved?: boolean
 }
 
@@ -165,6 +169,7 @@ export function Compressor() {
   const videoRunning = useRef(false)
   const urls = useRef<string[]>([])
   const videoControllers = useRef<Map<string, AbortController>>(new Map())
+  const imageStorageControllers = useRef<Map<string, AbortController>>(new Map())
   const videoAttempts = useRef<Map<string, ReturnType<typeof createVideoJobAttempt>>>(new Map())
 
   useEffect(() => {
@@ -211,52 +216,70 @@ export function Compressor() {
           }
           urls.current.push(downloadUrl)
 
-          const storageEnabled = isShrinkcordCloudStorageConfigured()
-          if (!storageEnabled) {
+          if (result.passthrough) {
             update(current.id, {
               status: "done",
               progress: 100,
               result,
               downloadUrl,
-              storageNotSaved: true,
+              storagePassthrough: true,
             })
             continue
           }
 
+          const storageEnabled = isShrinkcordCloudStorageConfigured()
           update(current.id, {
-            status: "uploading",
+            status: "done",
             progress: 100,
             result,
             downloadUrl,
-            uploadProgress: 0,
+            storageNotSaved: !storageEnabled,
+            storageUploadInProgress: storageEnabled,
+            uploadProgress: storageEnabled ? 0 : undefined,
           })
 
-          const storage = await uploadCompressedBlobToStorage({
+          if (!storageEnabled) continue
+
+          const controller = new AbortController()
+          imageStorageControllers.current.set(current.id, controller)
+          void uploadCompressedBlobToStorage({
             blob: result.blob,
             fileName: result.fileName,
             contentType: result.outputType,
+            signal: controller.signal,
             onProgress: (percent) => {
               if (!itemsRef.current.some((entry) => entry.id === current.id)) return
-              update(current.id, { uploadProgress: percent })
+              update(current.id, { uploadProgress: percent, storageUploadInProgress: true })
             },
           })
-
-          if (!itemsRef.current.some((entry) => entry.id === current.id)) continue
-
-          if (storage.ok) {
-            update(current.id, {
-              status: "done",
-              uploadProgress: 100,
-              storageDownloadUrl: storage.downloadUrl,
-              storageNotSaved: false,
+            .then((storage) => {
+              imageStorageControllers.current.delete(current.id)
+              if (!itemsRef.current.some((entry) => entry.id === current.id)) return
+              if (storage.ok) {
+                update(current.id, {
+                  storageDownloadUrl: storage.downloadUrl,
+                  storageExpiresAt: storage.expiresAt,
+                  storageNotSaved: false,
+                  storageUploadInProgress: false,
+                  uploadProgress: 100,
+                })
+              } else {
+                update(current.id, {
+                  storageNotSaved: true,
+                  storageUploadInProgress: false,
+                  uploadProgress: 100,
+                })
+              }
             })
-          } else {
-            update(current.id, {
-              status: "done",
-              uploadProgress: 100,
-              storageNotSaved: true,
+            .catch((error) => {
+              imageStorageControllers.current.delete(current.id)
+              if (error instanceof DOMException && error.name === "AbortError") return
+              if (!itemsRef.current.some((entry) => entry.id === current.id)) return
+              update(current.id, {
+                storageNotSaved: true,
+                storageUploadInProgress: false,
+              })
             })
-          }
         } catch (error) {
           if (!itemsRef.current.some((entry) => entry.id === current.id)) continue
           update(current.id, {
@@ -343,6 +366,7 @@ export function Compressor() {
       }
 
       const storageDownloadUrl = terminal.download_url ?? undefined
+      const storageExpiresAt = terminal.expires_at ?? undefined
       const storageNotSaved = isShrinkcordCloudStorageConfigured() && !storageDownloadUrl
 
       update(itemId, { status: "downloading", downloadProgress: 0 })
@@ -364,6 +388,7 @@ export function Compressor() {
         outputBytes: output.bytes,
         downloadUrl,
         storageDownloadUrl,
+        storageExpiresAt,
         storageNotSaved,
       })
     } catch (error) {
@@ -473,9 +498,15 @@ export function Compressor() {
     if (target.jobId) await requestServerJobCancel(target.jobId)
   }
 
+  const stopImageStorage = (id: string) => {
+    imageStorageControllers.current.get(id)?.abort()
+    imageStorageControllers.current.delete(id)
+  }
+
   const removeItem = (id: string) => {
     const target = itemsRef.current.find((item) => item.id === id)
     if (!target) return
+    if (target.kind === "image") stopImageStorage(id)
     if (target.kind === "video") void stopVideoWork(target)
     videoAttempts.current.delete(id)
     if (target.kind === "image") {
@@ -505,10 +536,13 @@ export function Compressor() {
 
   const clearAll = () => {
     for (const item of itemsRef.current) {
+      if (item.kind === "image") stopImageStorage(item.id)
       if (item.kind === "video") void stopVideoWork(item)
     }
     for (const controller of videoControllers.current.values()) controller.abort()
     videoControllers.current.clear()
+    for (const controller of imageStorageControllers.current.values()) controller.abort()
+    imageStorageControllers.current.clear()
     videoAttempts.current.clear()
     for (const item of itemsRef.current) {
       if (item.kind === "image") {
@@ -685,7 +719,9 @@ export function Compressor() {
               {item.status === "done" ? (
                 <StorageResultNote
                   storageDownloadUrl={item.storageDownloadUrl}
+                  storageExpiresAt={item.storageExpiresAt}
                   storageNotSaved={item.storageNotSaved}
+                  storagePassthrough={item.kind === "image" ? item.storagePassthrough : false}
                 />
               ) : null}
               {item.kind === "image" && item.result?.scaled && !item.result.missedTarget ? (
@@ -760,7 +796,7 @@ function ImageItemMeta({ item }: { item: ImageQueueItem }) {
             <Badge variant="shrinking">Shrinking · {progressValue}%</Badge>
           </>
         ) : null}
-        {item.status === "uploading" ? (
+        {item.status === "done" && item.storageUploadInProgress ? (
           <>
             <span className="font-mono text-xs tabular-nums">{formatMegabytes(item.file.size)}</span>
             <Badge variant="shrinking">Saving online · {Math.min(item.uploadProgress ?? 0, 99)}%</Badge>
@@ -782,7 +818,7 @@ function ImageItemMeta({ item }: { item: ImageQueueItem }) {
           <p className="sr-only" role="status">Shrinking {progressValue} percent</p>
         </>
       ) : null}
-      {item.status === "uploading" ? (
+      {item.status === "done" && item.storageUploadInProgress ? (
         <>
           <Progress
             value={Math.min(item.uploadProgress ?? 0, 99)}

@@ -108,6 +108,13 @@ describe("validatePrBody", () => {
     assert.equal(good.ok, true)
   })
 
+  it("checks indented prose after a blank line inside an ordered list item", () => {
+    const bad = validatePrBody("1. Item.\n\n    Continuation \u2013 en dash.")
+    assert.equal(bad.ok, false)
+    const good = validatePrBody("1. Item.\n\n    Continuation is a full sentence.")
+    assert.equal(good.ok, true)
+  })
+
   it("exports normalizeLineEndings for CRLF input", () => {
     assert.equal(normalizeLineEndings("a\r\nb\rc"), "a\nb\nc")
   })

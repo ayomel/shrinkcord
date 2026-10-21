@@ -1,5 +1,6 @@
-import { getShrinkcordApiBaseUrl, isShrinkcordCloudStorageConfigured, shrinkcordApiUrl } from "@/lib/shrinkcord-api-url"
 import { ShrinkcordApiError } from "@/lib/shrinkcord-api-client"
+import { getShrinkcordApiBaseUrl, isShrinkcordCloudStorageConfigured, shrinkcordApiUrl } from "@/lib/shrinkcord-api-url"
+import { resolveShrinkcordStorageUrl } from "@/lib/shrinkcord-storage-url"
 
 export type ShrinkcordUploadSession = {
   key: string
@@ -37,7 +38,10 @@ export type UploadCompressedBlobOptions = {
   createSessionImpl?: typeof createShrinkcordUploadSession
 }
 
-const DEFAULT_COLLISION_ATTEMPTS = 3
+const DEFAULT_COLLISION_ATTEMPTS = 5
+const POST_UPLOAD_TIMEOUT_MS = 15_000
+const PUT_TIMEOUT_MIN_MS = 60_000
+const PUT_TIMEOUT_MAX_MS = 30 * 60 * 1000
 
 function abortError(): DOMException {
   return new DOMException("The request was canceled.", "AbortError")
@@ -47,7 +51,30 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
 }
 
-function parseUploadSession(value: unknown): ShrinkcordUploadSession {
+function timedSignal(signal: AbortSignal, timeoutMs: number): AbortSignal {
+  const timeout = AbortSignal.timeout(timeoutMs)
+  return AbortSignal.any([signal, timeout])
+}
+
+export function putUploadTimeoutMs(byteLength: number): number {
+  const scaled = 15_000 + Math.ceil(byteLength / 1024) * 2_000
+  return Math.min(PUT_TIMEOUT_MAX_MS, Math.max(PUT_TIMEOUT_MIN_MS, scaled))
+}
+
+function parseAbsoluteHttpUrl(value: string, apiBaseUrl: string, fieldName: string): string {
+  const resolved = resolveShrinkcordStorageUrl(value, apiBaseUrl)
+  try {
+    const parsed = new URL(resolved)
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      throw new Error("invalid protocol")
+    }
+    return resolved
+  } catch {
+    throw new ShrinkcordApiError("unknown", `Shrinkcord returned an invalid ${fieldName}.`, { retryable: true })
+  }
+}
+
+function parseUploadSession(value: unknown, apiBaseUrl: string): ShrinkcordUploadSession {
   if (!isRecord(value)) {
     throw new ShrinkcordApiError("unknown", "Shrinkcord returned an invalid upload response.", { retryable: true })
   }
@@ -60,9 +87,11 @@ function parseUploadSession(value: unknown): ShrinkcordUploadSession {
   if (
     method !== "PUT"
     || typeof key !== "string"
+    || !key.trim()
     || typeof uploadUrl !== "string"
     || typeof downloadUrl !== "string"
     || typeof expiresAt !== "string"
+    || !expiresAt.trim()
     || !isRecord(headers)
   ) {
     throw new ShrinkcordApiError("unknown", "Shrinkcord returned an invalid upload response.", { retryable: true })
@@ -75,21 +104,30 @@ function parseUploadSession(value: unknown): ShrinkcordUploadSession {
     throw new ShrinkcordApiError("unknown", "Shrinkcord returned an invalid upload response.", { retryable: true })
   }
   return {
-    key,
-    upload_url: uploadUrl,
+    key: key.trim(),
+    upload_url: parseAbsoluteHttpUrl(uploadUrl, apiBaseUrl, "upload URL"),
     method: "PUT",
     headers: normalizedHeaders,
-    download_url: downloadUrl,
-    expires_at: expiresAt,
+    download_url: parseAbsoluteHttpUrl(downloadUrl, apiBaseUrl, "download URL"),
+    expires_at: expiresAt.trim(),
   }
 }
 
+export type CreateUploadSessionInput = {
+  filename: string
+  content_type: string
+  size: number
+  previous_key?: string
+}
+
 export async function createShrinkcordUploadSession(
-  input: { filename: string; contentType: string; size: number },
+  input: CreateUploadSessionInput,
   options: { baseUrl?: string; signal?: AbortSignal; fetchImpl?: typeof fetch } = {},
 ): Promise<ShrinkcordUploadSession> {
   const fetchImpl = options.fetchImpl ?? fetch
-  const url = shrinkcordApiUrl("/uploads", options.baseUrl ?? getShrinkcordApiBaseUrl())
+  const baseUrl = options.baseUrl ?? getShrinkcordApiBaseUrl()
+  const url = shrinkcordApiUrl("/uploads", baseUrl)
+  const controlSignal = timedSignal(options.signal ?? new AbortController().signal, POST_UPLOAD_TIMEOUT_MS)
   let response: Response
   try {
     response = await fetchImpl(url, {
@@ -100,28 +138,30 @@ export async function createShrinkcordUploadSession(
       },
       body: JSON.stringify({
         filename: input.filename,
-        contentType: input.contentType,
+        content_type: input.content_type,
         size: input.size,
+        ...(input.previous_key ? { previous_key: input.previous_key } : {}),
       }),
       cache: "no-store",
       credentials: "omit",
-      signal: options.signal,
+      signal: controlSignal,
     })
   } catch {
-    if (options.signal?.aborted) throw abortError()
+    if (options.signal?.aborted || controlSignal.aborted) throw abortError()
     throw new ShrinkcordApiError("network", "Could not reach Shrinkcord. Check your connection and try again.", { retryable: true })
   }
   const text = await response.text()
-  if (!response.ok) {
+  if (response.status === 413) {
+    throw new ShrinkcordApiError("too_large", "This compressed image is too large to store online.", { status: 413 })
+  }
+  if (response.status !== 201) {
     throw new ShrinkcordApiError(
-      response.status === 413 ? "too_large" : "unknown",
-      response.status === 413
-        ? "This compressed image is too large to store online."
-        : "Could not start the online save.",
+      "unknown",
+      "Could not start the online save.",
       { status: response.status, retryable: response.status >= 500 },
     )
   }
-  return parseUploadSession(JSON.parse(text))
+  return parseUploadSession(JSON.parse(text), baseUrl)
 }
 
 export function putBlobWithXhr(
@@ -147,7 +187,7 @@ export function putBlobWithXhr(
     }
 
     request.open("PUT", uploadUrl)
-    request.timeout = 30 * 60 * 1000
+    request.timeout = putUploadTimeoutMs(blob.size)
     request.withCredentials = false
     for (const [name, value] of Object.entries(headers)) {
       request.setRequestHeader(name, value)
@@ -186,14 +226,17 @@ export async function uploadCompressedBlobToStorage(
   const putImpl = options.putImpl ?? putBlobWithXhr
   const createSessionImpl = options.createSessionImpl ?? createShrinkcordUploadSession
 
+  let previousKey: string | undefined
+
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     if (signal.aborted) throw abortError()
     try {
       const session = await createSessionImpl(
         {
           filename: options.fileName,
-          contentType: options.contentType,
+          content_type: options.contentType,
           size: options.blob.size,
+          previous_key: previousKey,
         },
         { baseUrl, signal, fetchImpl },
       )
@@ -207,7 +250,10 @@ export async function uploadCompressedBlobToStorage(
           options.onProgress?.(Math.min(99, Math.round((loaded / total) * 100)))
         },
       )
-      if (status === 412) continue
+      if (status === 412) {
+        previousKey = session.key
+        continue
+      }
       if (status >= 200 && status < 300) {
         options.onProgress?.(100)
         return {

@@ -16,7 +16,7 @@ In development, unset `NEXT_PUBLIC_SHRINKCORD_API_URL` uses `http://localhost:30
 
 ## HTTP contract
 
-Video jobs (see shrinkcord-api PR #43):
+Video jobs (see shrinkcord-api PR #45):
 
 - `POST /jobs` multipart (`file`, optional `target_size_bytes`), 429 with `Retry-After`
 - `GET /jobs/:id` job JSON (`QUEUED`, `PROCESSING`, `COMPLETED`, `FAILED`, `CANCELED`)
@@ -26,8 +26,8 @@ Video jobs (see shrinkcord-api PR #43):
 
 Image storage (7-day R2, shrinkcord-api PR #45):
 
-- `POST /uploads` JSON `{ filename, contentType, size }` (images only, 50 MiB cap)
+- `POST /uploads` JSON `{ filename, content_type, size, previous_key? }` (images only, 50 MiB cap)
 - Response `{ key, upload_url, method: "PUT", headers, download_url, expires_at }`
-- Client `PUT`s compressed bytes to `upload_url` with the returned headers; `412` means retry `POST /uploads`
+- Client `PUT`s compressed bytes to `upload_url` with the returned headers; `412` means retry `POST /uploads` with `previous_key`
 
 The UI uploads compressed images after browser encoding, shows upload progress, and surfaces `download_url` when saving succeeds. Compression still finishes when storage is unavailable.

@@ -3,6 +3,7 @@ import { describe, it } from "node:test"
 import {
   createShrinkcordUploadSession,
   putBlobWithXhr,
+  putUploadTimeoutMs,
   uploadCompressedBlobToStorage,
   type ShrinkcordUploadSession,
 } from "./shrinkcord-storage-upload.ts"
@@ -25,19 +26,19 @@ function session(key: string): ShrinkcordUploadSession {
 }
 
 describe("createShrinkcordUploadSession", () => {
-  it("POSTs filename, contentType, and size", async () => {
+  it("POSTs snake_case filename, content_type, and size", async () => {
     let posted: string | undefined
     const fetchImpl = async (_url: string, init?: RequestInit) => {
       posted = init?.body as string
-      return new Response(JSON.stringify(session("a")), { status: 200 })
+      return new Response(JSON.stringify(session("a")), { status: 201 })
     }
     await createShrinkcordUploadSession(
-      { filename: "photo-discord.jpg", contentType: "image/jpeg", size: 3 },
+      { filename: "photo-discord.jpg", content_type: "image/jpeg", size: 3 },
       { baseUrl, fetchImpl },
     )
     assert.deepEqual(JSON.parse(posted!), {
       filename: "photo-discord.jpg",
-      contentType: "image/jpeg",
+      content_type: "image/jpeg",
       size: 3,
     })
   })
@@ -88,24 +89,23 @@ describe("uploadCompressedBlobToStorage", () => {
     process.env.NEXT_PUBLIC_SHRINKCORD_API_URL = originalEnv
   })
 
-  it("retries on 412 with a new upload session key", async () => {
+  it("retries on 412 with previous_key from the failed key", async () => {
     process.env.NEXT_PUBLIC_SHRINKCORD_API_URL = baseUrl
-    const keys: string[] = []
+    const postedBodies: Array<Record<string, unknown>> = []
     const result = await uploadCompressedBlobToStorage({
       blob,
       fileName: "a.jpg",
       contentType: "image/jpeg",
       baseUrl,
-      createSessionImpl: async () => {
-        const next = keys.length === 0 ? "key-1" : "key-2"
-        keys.push(next)
-        return session(next)
+      createSessionImpl: async (input) => {
+        postedBodies.push({ ...input })
+        const key = postedBodies.length === 1 ? "key-1" : "key-2"
+        return session(key)
       },
-      putImpl: async () => (keys.length === 1 ? 412 : 200),
+      putImpl: async () => (postedBodies.length === 1 ? 412 : 200),
     })
     assert.equal(result.ok, true)
-    if (result.ok) assert.equal(result.key, "key-2")
-    assert.deepEqual(keys, ["key-1", "key-2"])
+    assert.equal(postedBodies[1]?.previous_key, "key-1")
     process.env.NEXT_PUBLIC_SHRINKCORD_API_URL = originalEnv
   })
 
@@ -138,6 +138,12 @@ describe("uploadCompressedBlobToStorage", () => {
     })
     assert.deepEqual(result, { ok: false, reason: "network" })
     process.env.NEXT_PUBLIC_SHRINKCORD_API_URL = originalEnv
+  })
+})
+
+describe("putUploadTimeoutMs", () => {
+  it("scales with payload size", () => {
+    assert.ok(putUploadTimeoutMs(1024) < putUploadTimeoutMs(50 * 1024 * 1024))
   })
 })
 

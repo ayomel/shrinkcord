@@ -3,6 +3,7 @@ import { describe, it } from "node:test"
 import {
   cancelShrinkcordJob,
   extractErrorMessage,
+  getShrinkcordJob,
   mapHttpStatusToError,
   parseRetryAfterMs,
   uploadJobWithXhr,
@@ -138,6 +139,36 @@ describe("uploadShrinkcordJob", () => {
     })
     assert.equal(result.id, jobId)
     assert.equal(calls, 0)
+  })
+})
+
+describe("getShrinkcordJob", () => {
+  it("preserves long presigned download URLs on completed jobs", async () => {
+    const longSig = "x".repeat(600)
+    const downloadUrl = `https://cdn.example.com/output?sig=${longSig}`
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = async () =>
+      new Response(
+        JSON.stringify({
+          id: jobId,
+          status: "COMPLETED",
+          progress: 100,
+          target_size_bytes: 20_000_000,
+          source_bytes: 1,
+          output_bytes: 1,
+          error_message: null,
+          download_url: downloadUrl,
+          expires_at: "2026-10-28T00:00:00.000Z",
+        }),
+        { status: 200 },
+      )
+    try {
+      const job = await getShrinkcordJob(jobId, undefined, "http://api.test")
+      assert.equal(job.download_url, downloadUrl)
+      assert.equal(job.download_url?.length, downloadUrl.length)
+    } finally {
+      globalThis.fetch = originalFetch
+    }
   })
 })
 

@@ -82,7 +82,7 @@ export function MediaDropZone({ onFiles, disabled = false, videoDisabledMessage 
         Browse files
       </button>
       <p className="mt-3 text-[12.5px] text-muted-foreground">
-        Images over 20 MiB shrink in your browser, then the compressed file can be saved for 7 days. Videos upload to Shrinkcord (max 500 MiB, 10 min).
+        Images over 20 MiB shrink in your browser; only the compressed output may be saved for 7 days. Videos upload to Shrinkcord for server-side compression (max 500 MiB, 10 min).
       </p>
       {videoDisabledMessage ? (
         <p className="mt-3 text-sm text-muted-foreground" role="status">

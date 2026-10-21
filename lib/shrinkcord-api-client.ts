@@ -1,4 +1,5 @@
 import { getShrinkcordApiBaseUrl, shrinkcordApiUrl } from "@/lib/shrinkcord-api-url"
+import { resolveShrinkcordStorageUrl } from "@/lib/shrinkcord-storage-url"
 import { normalizeCompressProgress } from "@/lib/video-progress"
 
 export type ShrinkcordJobStatus = "QUEUED" | "PROCESSING" | "COMPLETED" | "FAILED" | "CANCELED"
@@ -221,7 +222,7 @@ function parseProgress(value: unknown): number {
   return 0
 }
 
-function parseJob(value: unknown, expectedId?: string): ShrinkcordJob {
+function parseJob(value: unknown, expectedId?: string, baseUrl?: string): ShrinkcordJob {
   if (!isRecord(value) || typeof value.id !== "string" || !UUID_V4.test(value.id)) {
     throw new ShrinkcordApiError("unknown", "Shrinkcord returned an invalid job response.", { retryable: true })
   }
@@ -243,9 +244,9 @@ function parseJob(value: unknown, expectedId?: string): ShrinkcordJob {
     source_bytes: optionalInt(value.source_bytes),
     output_bytes: optionalInt(value.output_bytes),
     error_message: optionalString(value.error_message),
-    key: optionalString(value.key),
-    download_url: optionalString(value.download_url),
-    expires_at: optionalString(value.expires_at),
+    key: optionalStorageKey(value.key),
+    download_url: optionalHttpUrl(value.download_url, baseUrl ?? getShrinkcordApiBaseUrl()),
+    expires_at: optionalIsoDateTime(value.expires_at),
   }
 }
 
@@ -257,6 +258,33 @@ function optionalInt(value: unknown): number | null {
 function optionalString(value: unknown): string | null {
   if (value === null || value === undefined) return null
   return typeof value === "string" ? value.replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, 240) : null
+}
+
+function optionalStorageKey(value: unknown): string | null {
+  if (typeof value !== "string") return null
+  const trimmed = value.trim()
+  return trimmed.length > 0 && trimmed.length <= 2048 ? trimmed : null
+}
+
+function optionalIsoDateTime(value: unknown): string | null {
+  if (typeof value !== "string") return null
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  return Number.isFinite(Date.parse(trimmed)) ? trimmed : null
+}
+
+function optionalHttpUrl(value: unknown, apiBaseUrl: string): string | null {
+  if (typeof value !== "string") return null
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  const resolved = resolveShrinkcordStorageUrl(trimmed, apiBaseUrl)
+  try {
+    const parsed = new URL(resolved)
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null
+    return resolved
+  } catch {
+    return null
+  }
 }
 
 function isJobStatus(value: unknown): value is ShrinkcordJobStatus {
@@ -443,7 +471,7 @@ export async function getShrinkcordJob(
   const controlSignal = timedSignal(signal ?? new AbortController().signal, CONTROL_TIMEOUT_MS)
   const { response, text } = await fetchJson(url, { method: "GET", headers: { Accept: "application/json" } }, controlSignal)
   if (!response.ok) throw mapHttpStatusToError(response.status, text, parseRetryAfterMs(response.headers.get("Retry-After")))
-  return parseJob(JSON.parse(text), jobId)
+  return parseJob(JSON.parse(text), jobId, baseUrl)
 }
 
 export async function cancelShrinkcordJob(

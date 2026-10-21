@@ -37,13 +37,36 @@ function stripFencedCodeBlocks(text) {
  * @param {string} text
  * @returns {string}
  */
+function isOrderedListMarkerLine(line) {
+  return /^\s*\d+\.\s/.test(line)
+}
+
 function stripIndentedCodeBlocks(text) {
   const lines = text.split("\n")
   const out = []
   let index = 0
+  let orderedListItemOpen = false
+  let blankInsideOrderedItem = false
+
   while (index < lines.length) {
     const line = lines[index]
+    const trimmed = line.trim()
+
+    if (isOrderedListMarkerLine(line)) {
+      orderedListItemOpen = true
+      blankInsideOrderedItem = false
+      out.push(line)
+      index += 1
+      continue
+    }
+
     if (!/^(?: {4}|\t)/.test(line)) {
+      if (trimmed !== "") {
+        orderedListItemOpen = false
+        blankInsideOrderedItem = false
+      } else if (orderedListItemOpen) {
+        blankInsideOrderedItem = true
+      }
       out.push(line)
       index += 1
       continue
@@ -53,8 +76,13 @@ function stripIndentedCodeBlocks(text) {
     const followsBlankLine = out.length === 0 || previous.trim() === ""
     const dedented = line.replace(/^(?: {4}|\t)+/, "")
     const isNestedListItem = /^(?:[-*+]|\d+\.)\s/.test(dedented)
+    const isOrderedContinuation = orderedListItemOpen && blankInsideOrderedItem
 
-    if (!followsBlankLine || isNestedListItem) {
+    if (!followsBlankLine || isNestedListItem || isOrderedContinuation) {
+      if (isOrderedContinuation) {
+        orderedListItemOpen = false
+        blankInsideOrderedItem = false
+      }
       out.push(line)
       index += 1
       continue

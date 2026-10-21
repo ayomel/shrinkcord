@@ -13,18 +13,18 @@ const steps = [
   },
   {
     title: "Compress in the browser",
-    copy: "Large images re-encode on your device. Only the compressed file is saved online for 7 days when the API is configured.",
+    copy: "Images re-encode on your device. Only the smaller compressed output is saved online for 7 days when the API is configured.",
   },
   {
     title: "Download and send",
-    copy: "Get a local download plus a 7-day storage link when saving works. Results are 19.5 MB or under with -discord in the name.",
+    copy: "Download locally right away. Compressed outputs that were saved online include a storage link. Files that already fit are not stored online.",
   },
 ]
 
 const proofs = [
   {
-    lead: "Originals stay on your device.",
-    rest: "Compression runs locally; only the smaller output may be stored online for 7 days.",
+    lead: "Images compress in your browser.",
+    rest: "Only the smaller compressed output is saved online for 7 days when storage is available.",
   },
   {
     lead: "Quality first, then dimensions.",
@@ -32,7 +32,7 @@ const proofs = [
   },
   {
     lead: "Videos upload to Shrinkcord.",
-    rest: "Server-side compression with a 7-day link to the finished file.",
+    rest: "The server compresses the video, deletes the original upload after processing, and keeps the compressed output for 7 days.",
   },
 ]
 
@@ -78,14 +78,15 @@ export default function Home() {
               <em className="not-italic text-brand-text">20&nbsp;MB</em> limit.
             </h1>
             <p className="lede mt-3 max-w-[30em] text-base text-muted-foreground lg:mt-[18px] lg:text-lg">
-              Drop images or MP4/MOV videos. Images compress in your browser; only the smaller
-              result is saved online for 7 days when the API is connected. Videos upload for
-              server-side compression under Discord&apos;s limit.
+              Drop images or MP4/MOV videos. Images compress in your browser, and only the smaller
+              compressed output is saved online for 7 days when the API is connected. Videos upload
+              to be compressed on the server; the original is deleted after processing and only the
+              compressed output is stored for 7 days.
             </p>
             <div className="mt-3.5 flex flex-wrap gap-3.5 text-[13px] text-muted-foreground lg:hidden">
               <span className="inline-flex items-center gap-1.5">
                 <Check className="size-3.5 text-ok-text" strokeWidth={2.4} aria-hidden="true" />
-                Originals stay local
+                Browser image compression
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <Check className="size-3.5 text-ok-text" strokeWidth={2.4} aria-hidden="true" />
