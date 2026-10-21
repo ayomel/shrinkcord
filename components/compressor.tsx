@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { type ShrinkResult, typeLabel } from "@/lib/compress"
+import { formatDropClassifyErrors, type DropRejection } from "@/lib/drop-rejection-messages"
 import { classifyFileAsync } from "@/lib/file-classification"
 import { formatMegabytes } from "@/lib/limits"
 import { runShrink } from "@/lib/run-shrink"
@@ -337,7 +338,7 @@ export function Compressor() {
 
   const enqueueFiles = async (files: File[]) => {
     setClassifyError(null)
-    const rejected: string[] = []
+    const rejections: DropRejection[] = []
     const newImages: ImageQueueItem[] = []
     const newVideos: VideoQueueItem[] = []
 
@@ -353,7 +354,7 @@ export function Compressor() {
         })
       } else if (classified.kind === "video") {
         if (!videoApiEnabled) {
-          rejected.push(`${file.name} (video API not configured)`)
+          rejections.push({ kind: "video-unavailable", fileName: file.name })
           continue
         }
         const id = crypto.randomUUID()
@@ -377,15 +378,13 @@ export function Compressor() {
           void drainVideos()
         })()
       } else {
-        rejected.push(file.name)
+        rejections.push({ kind: "wrong-type", fileName: file.name })
       }
     }
 
-    if (rejected.length) {
-      const names = rejected.join(", ")
-      setClassifyError(
-        `Could not add ${names}. Choose a JPEG, PNG, WebP, MP4, or MOV file. Video upload is unavailable on this site; images still work in your browser.`,
-      )
+    const rejectionMessage = formatDropClassifyErrors(rejections, videoApiEnabled)
+    if (rejectionMessage) {
+      setClassifyError(rejectionMessage)
     }
 
     if (newImages.length === 0 && newVideos.length === 0) return
