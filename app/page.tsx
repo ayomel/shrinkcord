@@ -12,19 +12,19 @@ const steps = [
     copy: "JPEG, PNG, WebP, MP4, or MOV. Images and videos each run one at a time so the tab stays responsive.",
   },
   {
-    title: "Images stay local",
-    copy: "Large images re-encode in your browser. Images at or under 20 MiB are returned unchanged.",
+    title: "Compress in the browser",
+    copy: "Large images re-encode on your device. Only the compressed file is saved online for 7 days when the API is configured.",
   },
   {
     title: "Download and send",
-    copy: "The result is 19.5 MB or under, named with -discord, ready for Discord's free upload.",
+    copy: "Get a local download plus a 7-day storage link when saving works. Results are 19.5 MB or under with -discord in the name.",
   },
 ]
 
 const proofs = [
   {
-    lead: "Images stay on your device.",
-    rest: "The file is decoded and re-encoded on this device.",
+    lead: "Originals stay on your device.",
+    rest: "Compression runs locally; only the smaller output may be stored online for 7 days.",
   },
   {
     lead: "Quality first, then dimensions.",
@@ -32,7 +32,7 @@ const proofs = [
   },
   {
     lead: "Videos upload to Shrinkcord.",
-    rest: "Server-side compression; outputs are removed after download or about an hour.",
+    rest: "Server-side compression with a 7-day link to the finished file.",
   },
 ]
 
@@ -78,14 +78,14 @@ export default function Home() {
               <em className="not-italic text-brand-text">20&nbsp;MB</em> limit.
             </h1>
             <p className="lede mt-3 max-w-[30em] text-base text-muted-foreground lg:mt-[18px] lg:text-lg">
-              Drop images or MP4/MOV videos. Images stay on your device; large ones re-encode to
-              19.5 MiB or less in the browser. Videos upload to the Shrinkcord server for
-              compression under Discord&apos;s limit.
+              Drop images or MP4/MOV videos. Images compress in your browser; only the smaller
+              result is saved online for 7 days when the API is connected. Videos upload for
+              server-side compression under Discord&apos;s limit.
             </p>
             <div className="mt-3.5 flex flex-wrap gap-3.5 text-[13px] text-muted-foreground lg:hidden">
               <span className="inline-flex items-center gap-1.5">
                 <Check className="size-3.5 text-ok-text" strokeWidth={2.4} aria-hidden="true" />
-                Images stay on your device
+                Originals stay local
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <Check className="size-3.5 text-ok-text" strokeWidth={2.4} aria-hidden="true" />

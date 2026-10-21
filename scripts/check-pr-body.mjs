@@ -38,10 +38,33 @@ function stripFencedCodeBlocks(text) {
  * @returns {string}
  */
 function stripIndentedCodeBlocks(text) {
-  return text
-    .split("\n")
-    .filter((line) => !/^(?: {4}|\t)/.test(line))
-    .join("\n")
+  const lines = text.split("\n")
+  const out = []
+  let index = 0
+  while (index < lines.length) {
+    const line = lines[index]
+    if (!/^(?: {4}|\t)/.test(line)) {
+      out.push(line)
+      index += 1
+      continue
+    }
+
+    const previous = out.length > 0 ? out[out.length - 1] : ""
+    const followsBlankLine = out.length === 0 || previous.trim() === ""
+    const dedented = line.replace(/^(?: {4}|\t)+/, "")
+    const isNestedListItem = /^(?:[-*+]|\d+\.)\s/.test(dedented)
+
+    if (!followsBlankLine || isNestedListItem) {
+      out.push(line)
+      index += 1
+      continue
+    }
+
+    while (index < lines.length && /^(?: {4}|\t)/.test(lines[index])) {
+      index += 1
+    }
+  }
+  return out.join("\n")
 }
 
 /**

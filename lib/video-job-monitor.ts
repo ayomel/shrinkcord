@@ -18,6 +18,9 @@ export type VideoJob = {
   output_bytes: number | null
   error_message: string | null
   target_size_bytes: number | null
+  key?: string | null
+  download_url?: string | null
+  expires_at?: string | null
 }
 
 export type VideoJobMonitorErrorCode = "invalid_job_id" | "http_error" | "invalid_response" | "network_error"
@@ -82,6 +85,9 @@ function toVideoJob(job: ShrinkcordJob): VideoJob {
     output_bytes: job.output_bytes,
     error_message: job.error_message,
     target_size_bytes: job.target_size_bytes,
+    key: job.key,
+    download_url: job.download_url,
+    expires_at: job.expires_at,
   }
 }
 

@@ -1,6 +1,7 @@
 "use client"
 
 import { MediaDropZone } from "@/components/media-drop-zone"
+import { StorageResultNote } from "@/components/storage-result-note"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
@@ -11,9 +12,11 @@ import { formatMegabytes } from "@/lib/limits"
 import { runShrink } from "@/lib/run-shrink"
 import { ShrinkcordApiError } from "@/lib/shrinkcord-api-client"
 import {
+  isShrinkcordCloudStorageConfigured,
   isShrinkcordVideoApiConfigured,
   VIDEO_API_DISABLED_MESSAGE,
 } from "@/lib/shrinkcord-api-url"
+import { uploadCompressedBlobToStorage } from "@/lib/shrinkcord-storage-upload"
 import { getVideoOutputFileName, fetchVideoJobOutput } from "@/lib/video-job-output"
 import { monitorVideoJob } from "@/lib/video-job-monitor"
 import { videoProgressSnapshot } from "@/lib/video-progress"
@@ -26,7 +29,7 @@ import { zipSync } from "fflate"
 import { AlertCircle, X } from "lucide-react"
 import { useCallback, useEffect, useRef, useState, type MutableRefObject } from "react"
 
-type ImageItemStatus = "queued" | "working" | "done" | "error"
+type ImageItemStatus = "queued" | "working" | "uploading" | "done" | "error"
 
 type ImageQueueItem = {
   kind: "image"
@@ -34,9 +37,12 @@ type ImageQueueItem = {
   file: File
   status: ImageItemStatus
   progress: number
+  uploadProgress?: number
   error?: string
   result?: ShrinkResult
   downloadUrl?: string
+  storageDownloadUrl?: string
+  storageNotSaved?: boolean
   thumbUrl?: string
 }
 
@@ -65,6 +71,8 @@ type VideoQueueItem = {
   jobId?: string
   outputBytes?: number
   downloadUrl?: string
+  storageDownloadUrl?: string
+  storageNotSaved?: boolean
 }
 
 type QueueItem = ImageQueueItem | VideoQueueItem
@@ -202,7 +210,53 @@ export function Compressor() {
             continue
           }
           urls.current.push(downloadUrl)
-          update(current.id, { status: "done", progress: 100, result, downloadUrl })
+
+          const storageEnabled = isShrinkcordCloudStorageConfigured()
+          if (!storageEnabled) {
+            update(current.id, {
+              status: "done",
+              progress: 100,
+              result,
+              downloadUrl,
+              storageNotSaved: true,
+            })
+            continue
+          }
+
+          update(current.id, {
+            status: "uploading",
+            progress: 100,
+            result,
+            downloadUrl,
+            uploadProgress: 0,
+          })
+
+          const storage = await uploadCompressedBlobToStorage({
+            blob: result.blob,
+            fileName: result.fileName,
+            contentType: result.outputType,
+            onProgress: (percent) => {
+              if (!itemsRef.current.some((entry) => entry.id === current.id)) return
+              update(current.id, { uploadProgress: percent })
+            },
+          })
+
+          if (!itemsRef.current.some((entry) => entry.id === current.id)) continue
+
+          if (storage.ok) {
+            update(current.id, {
+              status: "done",
+              uploadProgress: 100,
+              storageDownloadUrl: storage.downloadUrl,
+              storageNotSaved: false,
+            })
+          } else {
+            update(current.id, {
+              status: "done",
+              uploadProgress: 100,
+              storageNotSaved: true,
+            })
+          }
         } catch (error) {
           if (!itemsRef.current.some((entry) => entry.id === current.id)) continue
           update(current.id, {
@@ -288,6 +342,9 @@ export function Compressor() {
         return
       }
 
+      const storageDownloadUrl = terminal.download_url ?? undefined
+      const storageNotSaved = isShrinkcordCloudStorageConfigured() && !storageDownloadUrl
+
       update(itemId, { status: "downloading", downloadProgress: 0 })
       const output = await fetchVideoJobOutput(jobId, {
         signal: controller.signal,
@@ -306,6 +363,8 @@ export function Compressor() {
         downloadProgress: 100,
         outputBytes: output.bytes,
         downloadUrl,
+        storageDownloadUrl,
+        storageNotSaved,
       })
     } catch (error) {
       if (!itemsRef.current.some((entry) => entry.id === itemId)) return
@@ -623,6 +682,12 @@ export function Compressor() {
                   Saved as JPEG. PNG can&apos;t be shrunk with a quality setting, so it was converted.
                 </div>
               ) : null}
+              {item.status === "done" ? (
+                <StorageResultNote
+                  storageDownloadUrl={item.storageDownloadUrl}
+                  storageNotSaved={item.storageNotSaved}
+                />
+              ) : null}
               {item.kind === "image" && item.result?.scaled && !item.result.missedTarget ? (
                 <p className="col-span-3 border-t border-border pt-2 font-mono text-xs text-muted-foreground sm:col-start-2 sm:col-span-2">
                   Scaled to {item.result.width}×{item.result.height} after quality alone was still too big.
@@ -695,6 +760,12 @@ function ImageItemMeta({ item }: { item: ImageQueueItem }) {
             <Badge variant="shrinking">Shrinking · {progressValue}%</Badge>
           </>
         ) : null}
+        {item.status === "uploading" ? (
+          <>
+            <span className="font-mono text-xs tabular-nums">{formatMegabytes(item.file.size)}</span>
+            <Badge variant="shrinking">Saving online · {Math.min(item.uploadProgress ?? 0, 99)}%</Badge>
+          </>
+        ) : null}
         {item.status === "error" ? (
           <>
             <span className="font-mono text-xs tabular-nums">{formatMegabytes(item.file.size)}</span>
@@ -709,6 +780,18 @@ function ImageItemMeta({ item }: { item: ImageQueueItem }) {
         <>
           <Progress value={progressValue} className="mt-1.5 h-1 rounded bg-[#33363d] [&>[data-slot=progress-indicator]]:bg-brand" aria-label="Shrink progress" />
           <p className="sr-only" role="status">Shrinking {progressValue} percent</p>
+        </>
+      ) : null}
+      {item.status === "uploading" ? (
+        <>
+          <Progress
+            value={Math.min(item.uploadProgress ?? 0, 99)}
+            className="mt-1.5 h-1 rounded bg-[#33363d] [&>[data-slot=progress-indicator]]:bg-brand"
+            aria-label="Online save progress"
+          />
+          <p className="sr-only" role="status">
+            Saving online {Math.min(item.uploadProgress ?? 0, 99)} percent
+          </p>
         </>
       ) : null}
     </>

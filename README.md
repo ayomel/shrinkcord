@@ -19,7 +19,7 @@ Image processing uses a Web Worker when available.
 
 Drop MP4 or MOV in the same control as images. The browser uploads to the API (`POST /jobs`), polls status, and downloads `*-discord.mp4`. One upload runs at a time; HTTP 429 waits for `Retry-After` before retrying.
 
-Videos are stored on the server until you download the output or it expires (about one hour).
+Compressed outputs (images and finished videos) get a storage download link that stays valid for 7 days. Original uploads are not kept after processing.
 
 ## Development
 

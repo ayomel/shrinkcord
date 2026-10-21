@@ -11,6 +11,11 @@ export function isShrinkcordVideoApiConfigured(): boolean {
   return process.env.NODE_ENV === "development"
 }
 
+/** True when compressed images may be saved through POST /uploads (explicit public URL only). */
+export function isShrinkcordCloudStorageConfigured(): boolean {
+  return Boolean(process.env.NEXT_PUBLIC_SHRINKCORD_API_URL?.trim())
+}
+
 export const VIDEO_API_DISABLED_MESSAGE =
   "Video compression is not configured for this site. Set NEXT_PUBLIC_SHRINKCORD_API_URL. Images still work in your browser."
 

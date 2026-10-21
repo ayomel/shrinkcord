@@ -11,6 +11,9 @@ export type ShrinkcordJob = {
   source_bytes: number | null
   output_bytes: number | null
   error_message: string | null
+  key?: string | null
+  download_url?: string | null
+  expires_at?: string | null
 }
 
 export type ShrinkcordApiErrorCode =
@@ -240,6 +243,9 @@ function parseJob(value: unknown, expectedId?: string): ShrinkcordJob {
     source_bytes: optionalInt(value.source_bytes),
     output_bytes: optionalInt(value.output_bytes),
     error_message: optionalString(value.error_message),
+    key: optionalString(value.key),
+    download_url: optionalString(value.download_url),
+    expires_at: optionalString(value.expires_at),
   }
 }
 
@@ -481,7 +487,7 @@ export async function downloadShrinkcordJobFile(
       headers: { Accept: "video/mp4, application/octet-stream" },
       cache: "no-store",
       credentials: "omit",
-      redirect: "error",
+      redirect: "follow",
       signal: downloadSignal,
     })
   } catch {

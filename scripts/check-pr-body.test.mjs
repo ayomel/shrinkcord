@@ -101,6 +101,13 @@ describe("validatePrBody", () => {
     assert.equal(result.ok, true)
   })
 
+  it("still checks nested bullets under ordered list markers", () => {
+    const bad = validatePrBody("1. Parent item.\n    - Nested bullet missing terminal punctuation")
+    assert.equal(bad.ok, false)
+    const good = validatePrBody("1. Parent item.\n    - Nested bullet is a full sentence.")
+    assert.equal(good.ok, true)
+  })
+
   it("exports normalizeLineEndings for CRLF input", () => {
     assert.equal(normalizeLineEndings("a\r\nb\rc"), "a\nb\nc")
   })
