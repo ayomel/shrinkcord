@@ -14,9 +14,13 @@ describe("validateVideoFile", () => {
     assert.equal(validateVideoFile({ name: "clip.MP4", type: "", size: 1 }), null)
   })
 
+  it("accepts iPhone MOV files", () => {
+    assert.equal(validateVideoFile({ name: "iphone.mov", type: "video/quicktime", size: 1 }), null)
+  })
+
   it("rejects empty files, unsupported types, and files over 500 MiB", () => {
     assert.match(validateVideoFile({ name: "clip.mp4", type: "video/mp4", size: 0 }) ?? "", /empty/i)
-    assert.match(validateVideoFile({ name: "clip.mov", type: "video/quicktime", size: 1 }) ?? "", /MP4/i)
+    assert.match(validateVideoFile({ name: "clip.avi", type: "video/x-msvideo", size: 1 }) ?? "", /MP4 or/i)
     assert.match(validateVideoFile({ name: "clip.mp4", type: "video/mp4", size: MAX_VIDEO_BYTES + 1 }) ?? "", /524\.288 MB.*500 MiB/i)
   })
 })

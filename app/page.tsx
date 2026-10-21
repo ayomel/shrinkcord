@@ -1,5 +1,4 @@
 import { Compressor } from "@/components/compressor"
-import { VideoSelection } from "@/components/video-selection"
 import { JsonLd } from "@/components/json-ld"
 import { FAQ } from "@/components/ui/faq"
 import { faqs } from "@/lib/faq"
@@ -79,9 +78,9 @@ export default function Home() {
               <em className="not-italic text-brand-text">20&nbsp;MB</em> limit.
             </h1>
             <p className="lede mt-3 max-w-[30em] text-base text-muted-foreground lg:mt-[18px] lg:text-lg">
-              Drop a JPEG, PNG, or WebP over 20 MB. Shrinkcord re-encodes it to{" "}
-              <b className="font-semibold text-foreground">19.5 MB or less</b>, right in your
-              browser. Smaller files are left untouched.
+              Drop images or MP4/MOV videos. Large images re-encode to{" "}
+              <b className="font-semibold text-foreground">19.5 MB or less</b> in your browser;
+              videos upload to Shrinkcord for compression under Discord&apos;s limit.
             </p>
             <div className="mt-3.5 flex flex-wrap gap-3.5 text-[13px] text-muted-foreground lg:hidden">
               <span className="inline-flex items-center gap-1.5">
@@ -116,8 +115,6 @@ export default function Home() {
           <Compressor />
         </div>
       </section>
-
-      <VideoSelection />
 
       <section id="how" className="scroll-mt-24 border-t border-border">
         <div className="mx-auto w-full max-w-[1160px] px-[18px] py-12 sm:px-8 lg:py-[72px]">
