@@ -1,13 +1,26 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
-import { stripIgnoredRegions, validatePrBody } from "./check-pr-body.mjs"
+import { normalizeLineEndings, stripIgnoredRegions, validatePrBody } from "./check-pr-body.mjs"
+
+describe("normalizeLineEndings", () => {
+  it("normalizes CRLF so bullet lines are matched", () => {
+    const body = "- Bad bullet missing terminal punctuation\r\n- Good sentence here."
+    const result = validatePrBody(body)
+    assert.equal(result.ok, false)
+    assert.match(result.errors.join(" "), /Bullet items must end/)
+  })
+})
 
 describe("stripIgnoredRegions", () => {
-  it("drops HTML comments, fenced code, and block HTML", () => {
+  it("drops HTML comments, fenced code, tilde fences, indented code, and block HTML", () => {
     const body = [
       "<!-- hidden -->",
-      "```js",
+      "~~~",
       "const x = ' - '",
+      "~~~",
+      "    indented code",
+      "```js",
+      "more code",
       "```",
       "<div>footer “quote”</div>",
       "Visible text.",
@@ -17,6 +30,8 @@ describe("stripIgnoredRegions", () => {
     assert.doesNotMatch(stripped, /footer/)
     assert.doesNotMatch(stripped, /hidden/)
     assert.doesNotMatch(stripped, /const x/)
+    assert.doesNotMatch(stripped, /indented/)
+    assert.doesNotMatch(stripped, /more code/)
   })
 })
 
@@ -39,15 +54,54 @@ describe("validatePrBody", () => {
     assert.equal(good.ok, true)
   })
 
-  it("requires full-sentence bullets", () => {
-    const result = validatePrBody("- lowercase start.")
-    assert.equal(result.ok, false)
-    const code = validatePrBody("- Run `pnpm test`.")
-    assert.equal(code.ok, true)
+  it("allows bullets that start with inline code", () => {
+    const result = validatePrBody("- `QUEUED` is shown as a separate state.")
+    assert.equal(result.ok, true)
   })
 
-  it("ignores violations inside fenced code", () => {
-    const result = validatePrBody(["- Valid bullet here.", "", "```", "foo – bar", "```"].join("\n"))
+  it("allows bullets that end with a markdown link parenthesis", () => {
+    const result = validatePrBody("- See [the docs](https://example.com)")
     assert.equal(result.ok, true)
+  })
+
+  it("allows bullets that end with a parenthetical before the period", () => {
+    const result = validatePrBody("- Fixed regression (see #21).")
+    assert.equal(result.ok, true)
+  })
+
+  it("allows bullets that end with a question mark", () => {
+    const result = validatePrBody("- Should we ship this change?")
+    assert.equal(result.ok, true)
+  })
+
+  it("allows GitHub task-list bullets", () => {
+    const result = validatePrBody("- [x] Ran `pnpm test` locally.")
+    assert.equal(result.ok, true)
+  })
+
+  it("allows bullets that start with bold or a link", () => {
+    assert.equal(validatePrBody("- **Note:** This updates copy only.").ok, true)
+    assert.equal(
+      validatePrBody("- [Issue #21](https://github.com/example/repo/issues/21) tracks follow-up.").ok,
+      true,
+    )
+  })
+
+  it("ignores violations inside fenced and indented code", () => {
+    const result = validatePrBody(
+      [
+        "- Valid bullet here.",
+        "",
+        "    foo – bar",
+        "~~~",
+        "foo – bar",
+        "~~~",
+      ].join("\n"),
+    )
+    assert.equal(result.ok, true)
+  })
+
+  it("exports normalizeLineEndings for CRLF input", () => {
+    assert.equal(normalizeLineEndings("a\r\nb\rc"), "a\nb\nc")
   })
 })
