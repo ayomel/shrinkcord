@@ -1,5 +1,5 @@
-import { downloadShrinkcordJobFile, ShrinkcordApiError } from "@/lib/shrinkcord-api-client"
-import { getShrinkcordApiBaseUrl } from "@/lib/shrinkcord-api-url"
+import { downloadShrinkcordJobFile, ShrinkcordApiError } from "@/lib/shrinkcordApiClient"
+import { getShrinkcordApiBaseUrl } from "@/lib/shrinkcordApiUrl"
 
 export const MAX_VIDEO_OUTPUT_BYTES = 500 * 1024 * 1024
 

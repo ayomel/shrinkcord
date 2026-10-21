@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
-import { buildStorageResultPresentation, STORAGE_NOT_SAVED_NOTE } from "./storage-result-copy.ts"
+import { buildStorageResultPresentation, STORAGE_NOT_SAVED_NOTE } from "./storageResultCopy.ts"
 import {
   createShrinkcordUploadSession,
   putBlobWithXhr,
@@ -8,7 +8,7 @@ import {
   StorageTimeoutError,
   uploadCompressedBlobToStorage,
   type ShrinkcordUploadSession,
-} from "./shrinkcord-storage-upload.ts"
+} from "./shrinkcordStorageUpload.ts"
 
 const baseUrl = "http://api.test"
 const blob = new Blob([1, 2, 3], { type: "image/jpeg" })

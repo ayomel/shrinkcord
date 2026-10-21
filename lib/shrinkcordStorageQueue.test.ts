@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
-import { enqueueStorageSaveByFileName, resetStorageSaveQueuesForTests } from "./shrinkcord-storage-queue.ts"
-import { uploadCompressedBlobToStorage, type ShrinkcordUploadSession } from "./shrinkcord-storage-upload.ts"
+import { enqueueStorageSaveByFileName, resetStorageSaveQueuesForTests } from "./shrinkcordStorageQueue.ts"
+import { uploadCompressedBlobToStorage, type ShrinkcordUploadSession } from "./shrinkcordStorageUpload.ts"
 
 const baseUrl = "http://api.test"
 const fileName = "slowlink-discord.png"

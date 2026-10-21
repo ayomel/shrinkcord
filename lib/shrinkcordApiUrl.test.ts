@@ -4,7 +4,7 @@ import {
   getShrinkcordApiBaseUrl,
   isShrinkcordCloudStorageConfigured,
   isShrinkcordVideoApiConfigured,
-} from "./shrinkcord-api-url.ts"
+} from "./shrinkcordApiUrl.ts"
 
 describe("shrinkcord API URL", () => {
   it("requires NEXT_PUBLIC_SHRINKCORD_API_URL in production builds", () => {

@@ -1,6 +1,6 @@
-import { ShrinkcordApiError } from "@/lib/shrinkcord-api-client"
-import { getShrinkcordApiBaseUrl, isShrinkcordCloudStorageConfigured, shrinkcordApiUrl } from "@/lib/shrinkcord-api-url"
-import { resolveShrinkcordStorageUrl } from "@/lib/shrinkcord-storage-url"
+import { ShrinkcordApiError } from "@/lib/shrinkcordApiClient"
+import { getShrinkcordApiBaseUrl, isShrinkcordCloudStorageConfigured, shrinkcordApiUrl } from "@/lib/shrinkcordApiUrl"
+import { resolveShrinkcordStorageUrl } from "@/lib/shrinkcordStorageUrl"
 
 export type ShrinkcordUploadSession = {
   key: string

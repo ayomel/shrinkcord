@@ -8,7 +8,7 @@ import {
   parseRetryAfterMs,
   uploadJobWithXhr,
   uploadShrinkcordJob,
-} from "./shrinkcord-api-client.ts"
+} from "./shrinkcordApiClient.ts"
 
 const jobId = "123e4567-e89b-42d3-a456-426614174000"
 

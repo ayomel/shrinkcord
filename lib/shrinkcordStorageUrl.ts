@@ -1,4 +1,4 @@
-import { normalizeApiBaseUrl } from "@/lib/shrinkcord-api-url"
+import { normalizeApiBaseUrl } from "@/lib/shrinkcordApiUrl"
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000
 

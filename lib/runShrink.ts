@@ -25,7 +25,7 @@ export function runShrink(
         if (typeof Worker === "undefined") {
           throw new Error("Worker unavailable")
         }
-        return new Worker(new URL("./compress.worker.ts", import.meta.url), {
+        return new Worker(new URL("./compressWorker.ts", import.meta.url), {
           type: "module",
         })
       })

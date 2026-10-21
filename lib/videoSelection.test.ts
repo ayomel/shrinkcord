@@ -6,7 +6,7 @@ import {
   MAX_VIDEO_TARGET_MB,
   parseVideoTarget,
   validateVideoFile,
-} from "./video-selection.ts"
+} from "./videoSelection.ts"
 
 describe("validateVideoFile", () => {
   it("accepts MP4 MIME types and empty MIME with an MP4 filename", () => {

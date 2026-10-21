@@ -1,6 +1,6 @@
-import { getShrinkcordApiBaseUrl, shrinkcordApiUrl } from "@/lib/shrinkcord-api-url"
-import { resolveShrinkcordStorageUrl } from "@/lib/shrinkcord-storage-url"
-import { normalizeCompressProgress } from "@/lib/video-progress"
+import { getShrinkcordApiBaseUrl, shrinkcordApiUrl } from "@/lib/shrinkcordApiUrl"
+import { resolveShrinkcordStorageUrl } from "@/lib/shrinkcordStorageUrl"
+import { normalizeCompressProgress } from "@/lib/videoProgress"
 
 export type ShrinkcordJobStatus = "QUEUED" | "PROCESSING" | "COMPLETED" | "FAILED" | "CANCELED"
 

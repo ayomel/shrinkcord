@@ -1,4 +1,4 @@
-import { validateVideoFile } from "@/lib/video-selection"
+import { validateVideoFile } from "@/lib/videoSelection"
 
 export const MAX_VIDEO_DURATION_SECONDS = 600
 

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
-import { scaleForTarget, searchQualityBySize } from "./search-quality.ts"
+import { scaleForTarget, searchQualityBySize } from "./searchQuality.ts"
 
 describe("searchQualityBySize", () => {
   it("returns quality 1.0 immediately when the top encode already fits", async () => {
