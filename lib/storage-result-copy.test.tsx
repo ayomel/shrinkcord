@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server"
 import { StorageResultNote } from "../components/storage-result-note"
 import {
   STORAGE_ALREADY_FITS_NOTE,
+  STORAGE_LINK_EXPIRED_NOTE,
   STORAGE_NOT_SAVED_NOTE,
   buildStorageResultPresentation,
 } from "./storage-result-copy"
@@ -44,6 +45,17 @@ describe("buildStorageResultPresentation", () => {
     })
     assert.equal(view?.kind, "saved")
   })
+
+  it("shows link expired without a download anchor when expires_at is past", () => {
+    const view = buildStorageResultPresentation({
+      storageDownloadUrl: "https://cdn.test/file.jpg",
+      storageExpiresAt: "2020-01-01T00:00:00.000Z",
+    })
+    assert.equal(view?.kind, "not_saved")
+    if (view?.kind === "not_saved") {
+      assert.equal(view.note, STORAGE_LINK_EXPIRED_NOTE)
+    }
+  })
 })
 
 describe("StorageResultNote", () => {
@@ -66,5 +78,16 @@ describe("StorageResultNote", () => {
   it("renders the already-fits note", () => {
     const html = renderToStaticMarkup(<StorageResultNote storagePassthrough />)
     assert.match(html, /Already fits, not saved online/)
+  })
+
+  it("renders plain link expired copy without a storage anchor", () => {
+    const html = renderToStaticMarkup(
+      <StorageResultNote
+        storageDownloadUrl="https://cdn.test/out.jpg"
+        storageExpiresAt="2020-01-01T00:00:00.000Z"
+      />,
+    )
+    assert.match(html, /Link expired/)
+    assert.doesNotMatch(html, /<a[^>]*Storage download link/)
   })
 })

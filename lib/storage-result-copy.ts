@@ -1,4 +1,9 @@
-import { formatStorageAvailabilityLabel } from "@/lib/shrinkcord-storage-url"
+import {
+  formatStorageAvailabilityLabel,
+  isStorageLinkExpired,
+} from "@/lib/shrinkcord-storage-url"
+
+export const STORAGE_LINK_EXPIRED_NOTE = "Link expired"
 
 export const STORAGE_NOT_SAVED_NOTE =
   "Not saved online. You can still download from this browser tab."
@@ -18,6 +23,9 @@ export function buildStorageResultPresentation(input: {
     return { kind: "not_saved", note: STORAGE_ALREADY_FITS_NOTE }
   }
   if (input.storageDownloadUrl?.trim()) {
+    if (input.storageExpiresAt && isStorageLinkExpired(input.storageExpiresAt)) {
+      return { kind: "not_saved", note: STORAGE_LINK_EXPIRED_NOTE }
+    }
     const availabilityLabel = input.storageExpiresAt
       ? formatStorageAvailabilityLabel(input.storageExpiresAt)
       : "Available until link expires"
