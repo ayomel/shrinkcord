@@ -3,7 +3,7 @@ import {
   type ShrinkcordApiTransport,
 } from "@/lib/shrinkcord-api-client"
 
-export type VideoJobPhase = "uploading" | "queued"
+export type VideoJobPhase = "uploading" | "server_busy" | "queued"
 
 export type VideoJobAttempt = {
   file: File
@@ -23,6 +23,7 @@ type SubmitVideoJobOptions = {
   baseUrl?: string
   onPhase?: (phase: VideoJobPhase) => void
   onProgress?: (percent: number) => void
+  onRateLimited?: (retryAfterMs: number, attempt: number) => void
 }
 
 export function createVideoJobAttempt(
@@ -50,6 +51,11 @@ export async function submitVideoJob(options: SubmitVideoJobOptions): Promise<{ 
       targetSizeBytes,
       signal: options.signal,
       baseUrl: options.baseUrl,
+      existingJobId: attempt.jobId,
+      onRateLimited: (delayMs, count) => {
+        options.onPhase?.("server_busy")
+        options.onRateLimited?.(delayMs, count)
+      },
       onUploadProgress: (loaded, total) => {
         if (total > 0) {
           options.onProgress?.(Math.min(99, Math.max(0, Math.round((loaded / total) * 100))))

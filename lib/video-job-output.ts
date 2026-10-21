@@ -22,6 +22,7 @@ export class VideoOutputError extends Error {
 export type FetchVideoJobOutputOptions = {
   signal?: AbortSignal
   apiBaseUrl?: string
+  onProgress?: (loaded: number, total: number | null) => void
 }
 
 export type VideoJobOutput = { blob: Blob; bytes: number }
@@ -32,7 +33,11 @@ export async function fetchVideoJobOutput(
 ): Promise<VideoJobOutput> {
   const baseUrl = options.apiBaseUrl ?? getShrinkcordApiBaseUrl()
   try {
-    const blob = await downloadShrinkcordJobFile(jobId, options.signal, baseUrl)
+    const blob = await downloadShrinkcordJobFile(jobId, {
+      signal: options.signal,
+      baseUrl,
+      onProgress: options.onProgress,
+    })
     if (blob.size > MAX_VIDEO_OUTPUT_BYTES) {
       throw new VideoOutputError("The video exceeds the 500 MiB download limit.", { status: 413, retryable: false })
     }
@@ -41,7 +46,7 @@ export async function fetchVideoJobOutput(
     if (error instanceof DOMException && error.name === "AbortError") throw error
     if (error instanceof ShrinkcordApiError) {
       if (error.status === 404) {
-        throw new VideoOutputError("This video job could not be found.", { status: 404, retryable: false })
+        throw new VideoOutputError("This video output is no longer available.", { status: 404, retryable: false, expired: true })
       }
       throw new VideoOutputError(error.message, { status: error.status, retryable: error.retryable })
     }

@@ -1,26 +1,26 @@
 # Shrinkcord API connection (browser)
 
-The Shrinkcord web app talks to the compression API **directly from the browser** with CORS. Large video bodies are not proxied through Vercel Functions.
+The web app calls the compression API from the browser with CORS. Video bodies are not proxied through Vercel Functions.
 
 ## Configuration
 
-Set the public API origin:
-
 ```bash
-NEXT_PUBLIC_SHRINKCORD_API_URL=https://shrinkcord-api.up.railway.app
+NEXT_PUBLIC_SHRINKCORD_API_URL=https://your-api.example.com
 ```
 
-In local development, when this variable is unset, the app uses `http://localhost:3000` (the default `pnpm dev` port for shrinkcord-api).
+In production this variable is required. When it is missing, the UI disables video uploads and still shrinks images locally.
 
-The server-only `SHRINKCORD_API_URL` is still used by `GET /api/health` to report upstream health from Next.js. Video workflows do not use it.
+In development, unset `NEXT_PUBLIC_SHRINKCORD_API_URL` uses `http://localhost:3000`.
+
+`SHRINKCORD_API_URL` is only used by `GET /api/health` on the Next.js server.
 
 ## HTTP contract
 
-See the [single FFmpeg server PR](https://github.com/ayomel/shrinkcord-api/pull/43) for the authoritative contract:
+See shrinkcord-api PR #43 (commit 3f13c84 on `feat/single-ffmpeg-server-aea8`):
 
-- `POST /jobs` — multipart upload (`file`, optional `target_size_bytes`)
-- `GET /jobs/:id` — job status and `progress`
-- `GET /jobs/:id/file` — completed MP4 download
-- `DELETE /jobs/:id` — cancel
+- `POST /jobs` multipart (`file`, optional `target_size_bytes`), 429 with `Retry-After`
+- `GET /jobs/:id` job JSON (`QUEUED`, `PROCESSING`, `COMPLETED`, `FAILED`, `CANCELED`)
+- `GET /jobs/:id/file` MP4 with `Content-Length`
+- `DELETE /jobs/:id` cancel; 409 when already terminal
 
-The UI uploads with `XMLHttpRequest` for progress events, polls job status, retries `POST /jobs` on HTTP 429, and maps 400/413/415 errors to user-facing messages.
+The UI uses XHR upload progress, honors `Retry-After` on 429, polls job status, maps errors by HTTP status, and deletes server jobs on cancel, remove, or clear.

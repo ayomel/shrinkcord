@@ -55,6 +55,24 @@ const DEFAULT_POLL_INTERVAL_MS = 2_000
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const TERMINAL_STATUSES = new Set<VideoJobStatus>(["COMPLETED", "FAILED", "CANCELED"])
 
+function assertValidJob(raw: ShrinkcordJob, expectedId: string): void {
+  if (raw.id.toLowerCase() !== expectedId.toLowerCase()) {
+    throw new VideoJobMonitorError("invalid_response", "The job service returned an invalid response. Try again.")
+  }
+  if (
+    raw.status !== "QUEUED"
+    && raw.status !== "PROCESSING"
+    && raw.status !== "COMPLETED"
+    && raw.status !== "FAILED"
+    && raw.status !== "CANCELED"
+  ) {
+    throw new VideoJobMonitorError("invalid_response", "The job service returned an invalid response. Try again.")
+  }
+  if (!Number.isFinite(raw.progress) || raw.progress < 0 || raw.progress > 100) {
+    throw new VideoJobMonitorError("invalid_response", "The job service returned an invalid response. Try again.")
+  }
+}
+
 function toVideoJob(job: ShrinkcordJob): VideoJob {
   return {
     id: job.id,
@@ -76,6 +94,7 @@ export async function getVideoJob(
   assertJobId(jobId)
   try {
     const raw = await transport.getJob(jobId, signal, baseUrl ?? getShrinkcordApiBaseUrl())
+    assertValidJob(raw, jobId)
     return toVideoJob(raw)
   } catch (error) {
     throw mapClientError(error)
@@ -91,6 +110,17 @@ export async function cancelVideoJob(
   assertJobId(jobId)
   try {
     const job = await transport.cancelJob(jobId, signal, baseUrl ?? getShrinkcordApiBaseUrl())
+    if (!job) {
+      return {
+        id: jobId,
+        status: "CANCELED",
+        progress: 0,
+        source_bytes: null,
+        output_bytes: null,
+        error_message: null,
+        target_size_bytes: null,
+      }
+    }
     return toVideoJob(job)
   } catch (error) {
     throw mapClientError(error)
@@ -114,6 +144,7 @@ export async function monitorVideoJob(
     let job: VideoJob | undefined
     try {
       const raw = await transport.getJob(jobId, options.signal, baseUrl)
+      assertValidJob(raw, jobId)
       job = toVideoJob(raw)
     } catch (error) {
       if (options.signal?.aborted) return undefined
@@ -142,6 +173,13 @@ function mapClientError(error: unknown): VideoJobMonitorError {
   if (error instanceof ShrinkcordApiError) {
     const status = error.status
     const retryable = error.retryable
+    if (status === 400) {
+      return new VideoJobMonitorError(
+        "http_error",
+        error.message,
+        { status, recoverable: false },
+      )
+    }
     if (status === 404) {
       return new VideoJobMonitorError(
         "http_error",

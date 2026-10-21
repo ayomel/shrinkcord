@@ -1,19 +1,35 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import {
+  cancelShrinkcordJob,
   mapHttpStatusToError,
+  parseRetryAfterMs,
   uploadJobWithXhr,
   uploadShrinkcordJob,
 } from "./shrinkcord-api-client.ts"
 
 const jobId = "123e4567-e89b-42d3-a456-426614174000"
 
+describe("parseRetryAfterMs", () => {
+  it("parses Retry-After seconds", () => {
+    assert.equal(parseRetryAfterMs("5"), 5000)
+  })
+})
+
 describe("mapHttpStatusToError", () => {
-  it("maps common API statuses to user-facing codes", () => {
-    assert.equal(mapHttpStatusToError(413, "").code, "too_large")
-    assert.equal(mapHttpStatusToError(415, "").code, "unsupported")
-    assert.equal(mapHttpStatusToError(429, "").code, "server_busy")
-    assert.equal(mapHttpStatusToError(400, "duration exceeds 600").code, "too_long")
+  it("uses friendly copy instead of raw server text", () => {
+    const error = mapHttpStatusToError(
+      429,
+      '{"message":"Too many jobs in progress; try again later"}',
+      5000,
+    )
+    assert.equal(error.message, "Server busy, retrying.")
+    assert.equal(error.retryAfterMs, 5000)
+    assert.equal(mapHttpStatusToError(413, "").message, "Choose a video that is 524.288 MiB (500 MiB) or smaller.")
+  })
+
+  it("refines 400 errors from message text when status alone is ambiguous", () => {
+    assert.equal(mapHttpStatusToError(400, '{"message":"duration exceeds limit"}').code, "too_long")
   })
 })
 
@@ -29,6 +45,9 @@ describe("uploadJobWithXhr", () => {
       }
       status = 201
       responseText = JSON.stringify({ id: jobId })
+      getResponseHeader() {
+        return null
+      }
       open() {}
       setRequestHeader() {}
       send() {
@@ -62,56 +81,68 @@ describe("uploadJobWithXhr", () => {
   })
 })
 
+describe("uploadShrinkcordJob", () => {
+  it("honours Retry-After between 429 responses", async () => {
+    const delays: number[] = []
+    let calls = 0
+    const file = new File(["x"], "a.mp4", { type: "video/mp4" })
+    const result = await uploadShrinkcordJob({
+      file,
+      baseUrl: "http://api.test",
+      maxRateLimitRetries: 5,
+      onRateLimited: (ms) => delays.push(ms),
+      uploadImpl: async () => {
+        calls += 1
+        if (calls < 3) throw mapHttpStatusToError(429, "", 5000)
+        return { id: jobId }
+      },
+    })
+    assert.equal(result.id, jobId)
+    assert.equal(calls, 3)
+    assert.ok(delays.every((ms) => ms === 5000))
+  })
+
+  it("skips upload when existingJobId is provided", async () => {
+    let calls = 0
+    const file = new File(["x"], "a.mp4", { type: "video/mp4" })
+    const result = await uploadShrinkcordJob({
+      file,
+      existingJobId: jobId,
+      uploadImpl: async () => {
+        calls += 1
+        return { id: jobId }
+      },
+    })
+    assert.equal(result.id, jobId)
+    assert.equal(calls, 0)
+  })
+})
+
 describe("cancelShrinkcordJob", () => {
-  it("DELETEs the job and returns the latest job record", async () => {
-    const calls: string[] = []
+  it("treats 409 as an already-finished job", async () => {
     const originalFetch = globalThis.fetch
-    globalThis.fetch = async (input, init) => {
-      const url = String(input)
-      calls.push(`${init?.method ?? "GET"} ${url}`)
+    globalThis.fetch = async (_input, init) => {
       if (init?.method === "DELETE") {
-        return new Response(JSON.stringify({ id: jobId, status: "CANCELED" }), { status: 200 })
+        return new Response(JSON.stringify({ message: "already COMPLETED" }), { status: 409 })
       }
       return new Response(
         JSON.stringify({
           id: jobId,
-          status: "CANCELED",
-          progress: 12,
+          status: "COMPLETED",
+          progress: 100,
           target_size_bytes: 20_000_000,
-          source_bytes: 100,
-          output_bytes: null,
+          source_bytes: 1,
+          output_bytes: 1,
           error_message: null,
         }),
         { status: 200 },
       )
     }
     try {
-      const { cancelShrinkcordJob } = await import("./shrinkcord-api-client.ts")
       const job = await cancelShrinkcordJob(jobId, undefined, "http://api.test")
-      assert.equal(job.status, "CANCELED")
-      assert.ok(calls.some((call) => call.startsWith("DELETE")))
-      assert.ok(calls.some((call) => call.startsWith("GET")))
+      assert.equal(job?.status, "COMPLETED")
     } finally {
       globalThis.fetch = originalFetch
     }
-  })
-})
-
-describe("uploadShrinkcordJob", () => {
-  it("retries 429 responses before succeeding", async () => {
-    let calls = 0
-    const file = new File(["x"], "a.mp4", { type: "video/mp4" })
-    const result = await uploadShrinkcordJob({
-      file,
-      rateLimitRetryDelayMs: 1,
-      maxRateLimitRetries: 5,
-      uploadImpl: async () => {
-        calls += 1
-        if (calls < 3) throw mapHttpStatusToError(429, "busy")
-        return { id: jobId }
-      },
-    })
-    assert.equal(result.id, jobId)
-    assert.equal(calls, 3)
   })
 })

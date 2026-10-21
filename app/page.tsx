@@ -8,12 +8,12 @@ import Link from "next/link"
 
 const steps = [
   {
-    title: "Drop the image",
-    copy: "JPEG, PNG, or WebP. Several files run one at a time so the tab stays responsive.",
+    title: "Drop images or videos",
+    copy: "JPEG, PNG, WebP, MP4, or MOV. Images and videos each run one at a time so the tab stays responsive.",
   },
   {
-    title: "Small files stay as they are",
-    copy: "Anything at or under 20 MB is returned unchanged. Only larger files are re-encoded.",
+    title: "Images stay local",
+    copy: "Large images re-encode in your browser. Images at or under 20 MiB are returned unchanged.",
   },
   {
     title: "Download and send",
@@ -31,8 +31,8 @@ const proofs = [
     rest: "Size only shrinks if it still has to.",
   },
   {
-    lead: "Files at or under 20 MB",
-    rest: "are returned unchanged.",
+    lead: "Videos upload to Shrinkcord.",
+    rest: "Server-side compression; outputs are removed after download or about an hour.",
   },
 ]
 
@@ -78,9 +78,9 @@ export default function Home() {
               <em className="not-italic text-brand-text">20&nbsp;MB</em> limit.
             </h1>
             <p className="lede mt-3 max-w-[30em] text-base text-muted-foreground lg:mt-[18px] lg:text-lg">
-              Drop images or MP4/MOV videos. Large images re-encode to{" "}
-              <b className="font-semibold text-foreground">19.5 MB or less</b> in your browser;
-              videos upload to Shrinkcord for compression under Discord&apos;s limit.
+              Drop images or MP4/MOV videos. Images stay on your device; large ones re-encode to
+              19.5 MiB or less in the browser. Videos upload to the Shrinkcord server for
+              compression under Discord&apos;s limit.
             </p>
             <div className="mt-3.5 flex flex-wrap gap-3.5 text-[13px] text-muted-foreground lg:hidden">
               <span className="inline-flex items-center gap-1.5">

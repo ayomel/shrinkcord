@@ -1,27 +1,26 @@
 "use client"
 
 import { cn } from "@/lib/utils"
-import { AlertCircle, Upload } from "lucide-react"
+import { Upload } from "lucide-react"
 import { motion } from "motion/react"
 import { useId, useRef, useState } from "react"
 
 type MediaDropZoneProps = {
   onFiles: (files: File[]) => void
   disabled?: boolean
+  videoDisabledMessage?: string | null
 }
 
 const ACCEPT =
   "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp,video/mp4,video/quicktime,.mp4,.mov"
 
-export function MediaDropZone({ onFiles, disabled = false }: MediaDropZoneProps) {
+export function MediaDropZone({ onFiles, disabled = false, videoDisabledMessage }: MediaDropZoneProps) {
   const inputId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
   const [isDragOver, setIsDragOver] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   const takeFiles = (list: FileList | null) => {
     if (disabled || !list?.length) return
-    setError(null)
     onFiles(Array.from(list))
   }
 
@@ -57,6 +56,8 @@ export function MediaDropZone({ onFiles, disabled = false }: MediaDropZoneProps)
         accept={ACCEPT}
         multiple
         disabled={disabled}
+        tabIndex={-1}
+        aria-label="Images and videos"
         onChange={(event) => {
           takeFiles(event.target.files)
           event.target.value = ""
@@ -71,21 +72,21 @@ export function MediaDropZone({ onFiles, disabled = false }: MediaDropZoneProps)
       <p className="mt-1 text-sm text-muted-foreground">
         JPEG, PNG, WebP · MP4 or iPhone MOV · multiple files OK
       </p>
-      <ButtonBrowse
-        inputId={inputId}
+      <button
+        type="button"
         disabled={disabled}
         onClick={() => inputRef.current?.click()}
-      />
+        className="mt-[18px] inline-flex h-11 w-full cursor-pointer items-center justify-center rounded-[10px] bg-primary px-5 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-[#3c45a5] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 sm:w-auto"
+        aria-controls={inputId}
+      >
+        Browse files
+      </button>
       <p className="mt-3 text-[12.5px] text-muted-foreground">
-        Images over 20 MB shrink in your browser. Videos upload to Shrinkcord for compression (max 500 MiB, 10 min).
+        Images over 20 MiB shrink in your browser. Videos upload to Shrinkcord for compression (max 500 MiB, 10 min).
       </p>
-      {error ? (
-        <p
-          role="alert"
-          className="mt-3 inline-flex items-center justify-center gap-1.5 text-sm text-destructive"
-        >
-          <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
-          {error}
+      {videoDisabledMessage ? (
+        <p className="mt-3 text-sm text-muted-foreground" role="status">
+          {videoDisabledMessage}
         </p>
       ) : null}
       {isDragOver ? (
@@ -98,27 +99,5 @@ export function MediaDropZone({ onFiles, disabled = false }: MediaDropZoneProps)
         </motion.div>
       ) : null}
     </div>
-  )
-}
-
-function ButtonBrowse({
-  inputId,
-  disabled,
-  onClick,
-}: {
-  inputId: string
-  disabled: boolean
-  onClick: () => void
-}) {
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-      className="mt-[18px] inline-flex h-11 w-full cursor-pointer items-center justify-center rounded-[10px] bg-primary px-5 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-[#3c45a5] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 sm:w-auto"
-      aria-controls={inputId}
-    >
-      Browse files
-    </button>
   )
 }

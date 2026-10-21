@@ -34,8 +34,8 @@ export function acceptedType(file: Pick<File, "type" | "name">): AcceptedType | 
 }
 
 export function formatMegabytes(bytes: number) {
-  if (bytes < 0.1 * MIB) return `${Math.max(1, Math.round(bytes / 1024))} KB`
-  return `${(bytes / MIB).toFixed(2)} MB`
+  if (bytes < 0.1 * MIB) return `${Math.max(1, Math.round(bytes / 1024))} KiB`
+  return `${(bytes / MIB).toFixed(2)} MiB`
 }
 
 export function outputFileName(original: string, type: string, passthrough: boolean) {

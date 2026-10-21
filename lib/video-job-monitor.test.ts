@@ -7,9 +7,10 @@ import {
   monitorVideoJob,
   VideoJobMonitorError,
 } from "./video-job-monitor.ts"
-import type { ShrinkcordJob, ShrinkcordApiTransport } from "./shrinkcord-api-client.ts"
+import type { ShrinkcordApiTransport, ShrinkcordJob } from "./shrinkcord-api-client.ts"
 
 const jobId = "123e4567-e89b-42d3-a456-426614174000"
+const otherJobId = "123e4567-e89b-42d3-b456-426614174001"
 const baseUrl = "http://api.test"
 
 function job(overrides: Partial<ShrinkcordJob> = {}): ShrinkcordJob {
@@ -46,6 +47,23 @@ describe("video job monitor", () => {
     const result = await getVideoJob(jobId, undefined, baseUrl, api)
     assert.equal(result.id, jobId)
     assert.equal(result.progress, 35)
+  })
+
+  it("rejects a mismatched job ID and malformed status or progress", async () => {
+    const api = transport(() => job({ id: otherJobId }))
+    await assert.rejects(getVideoJob(jobId, undefined, baseUrl, api), (error: unknown) => {
+      assert.ok(error instanceof VideoJobMonitorError)
+      assert.equal(error.code, "invalid_response")
+      return true
+    })
+    const badStatus = transport(() => job({ status: "RUNNING" as ShrinkcordJob["status"] }))
+    await assert.rejects(getVideoJob(jobId, undefined, baseUrl, badStatus), /invalid response/i)
+  })
+
+  it("accepts fractional API progress values", async () => {
+    const api = transport(() => job({ progress: 12.7 as unknown as number }))
+    const result = await getVideoJob(jobId, undefined, baseUrl, api)
+    assert.equal(result.progress, 13)
   })
 
   it("retries recoverable errors while polling and ends at completion", async () => {
@@ -86,13 +104,57 @@ describe("video job monitor", () => {
     assert.deepEqual(seen, [99, 99])
   })
 
-  it("stops with a typed error when the job is missing", async () => {
-    const api = transport(() => new ShrinkcordApiError("unknown", "missing", { status: 404, retryable: false }))
-    await assert.rejects(getVideoJob(jobId, undefined, baseUrl, api), (error: unknown) => {
+  it("stops polling on a non-recoverable 400", async () => {
+    const api = transport(() => new ShrinkcordApiError("unknown", "bad id", { status: 400, retryable: false }))
+    await assert.rejects(monitorVideoJob(jobId, {
+      baseUrl,
+      transport: api,
+      pollIntervalMs: 1,
+    }), (error: unknown) => {
       assert.ok(error instanceof VideoJobMonitorError)
-      assert.equal(error.status, 404)
+      assert.equal(error.recoverable, false)
       return true
     })
+  })
+
+  it("aborts the wait cleanly", async () => {
+    const controller = new AbortController()
+    let callbacks = 0
+    const api = transport(() => job())
+    const monitoring = monitorVideoJob(jobId, {
+      baseUrl,
+      transport: api,
+      pollIntervalMs: 100,
+      signal: controller.signal,
+      onJob: () => {
+        callbacks += 1
+        controller.abort()
+      },
+    })
+    const terminal = await monitoring
+    assert.equal(terminal, undefined)
+    assert.equal(callbacks, 1)
+  })
+
+  it("does not overlap status requests while polling", async () => {
+    let active = 0
+    let maxActive = 0
+    let calls = 0
+    const api: ShrinkcordApiTransport = {
+      uploadJob: async () => ({ id: jobId }),
+      getJob: async () => {
+        active += 1
+        maxActive = Math.max(maxActive, active)
+        await new Promise((resolve) => setTimeout(resolve, 10))
+        active -= 1
+        calls += 1
+        return calls === 1 ? job() : job({ status: "COMPLETED", progress: 100 })
+      },
+      cancelJob: async () => job({ status: "CANCELED" }),
+      downloadJobFile: async () => new Blob(),
+    }
+    await monitorVideoJob(jobId, { baseUrl, transport: api, pollIntervalMs: 1 })
+    assert.equal(maxActive, 1)
   })
 
   it("cancel returns the authoritative canceled job", async () => {

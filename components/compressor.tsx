@@ -5,14 +5,19 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { type ShrinkResult, typeLabel } from "@/lib/compress"
-import { classifyFileAsync, type FileKind } from "@/lib/file-classification"
-import { acceptedType, formatMegabytes } from "@/lib/limits"
+import { classifyFileAsync } from "@/lib/file-classification"
+import { formatMegabytes } from "@/lib/limits"
 import { runShrink } from "@/lib/run-shrink"
-import { cancelShrinkcordJob, ShrinkcordApiError } from "@/lib/shrinkcord-api-client"
+import { ShrinkcordApiError } from "@/lib/shrinkcord-api-client"
+import {
+  isShrinkcordVideoApiConfigured,
+  VIDEO_API_DISABLED_MESSAGE,
+} from "@/lib/shrinkcord-api-url"
 import { getVideoOutputFileName, fetchVideoJobOutput } from "@/lib/video-job-output"
 import { monitorVideoJob } from "@/lib/video-job-monitor"
 import { videoProgressSnapshot } from "@/lib/video-progress"
 import { probeVideoDuration } from "@/lib/video-precheck"
+import { requestServerJobCancel } from "@/lib/video-server-cleanup"
 import { createVideoJobAttempt, submitVideoJob } from "@/lib/video-jobs"
 import { DEFAULT_VIDEO_TARGET_BYTES } from "@/lib/video-selection"
 import { zipSync } from "fflate"
@@ -37,7 +42,10 @@ type VideoItemStatus =
   | "precheck"
   | "queued"
   | "uploading"
+  | "server_busy"
+  | "job_queued"
   | "processing"
+  | "downloading"
   | "done"
   | "error"
   | "canceled"
@@ -49,7 +57,9 @@ type VideoQueueItem = {
   status: VideoItemStatus
   uploadProgress: number
   compressProgress: number
+  downloadProgress: number
   error?: string
+  canRetry?: boolean
   jobId?: string
   outputBytes?: number
   downloadUrl?: string
@@ -57,7 +67,14 @@ type VideoQueueItem = {
 
 type QueueItem = ImageQueueItem | VideoQueueItem
 
-function ResultThumb({ url, name, kind }: { url?: string; name: string; kind: FileKind }) {
+const videoApiEnabled = isShrinkcordVideoApiConfigured()
+
+function videoThumbLabel(file: File): string {
+  if (file.type === "video/quicktime" || /\.mov$/i.test(file.name)) return "MOV"
+  return "MP4"
+}
+
+function ResultThumb({ url, name, file }: { url?: string; name: string; file: File }) {
   if (url) {
     return (
       // eslint-disable-next-line @next/next/no-img-element -- object URL preview
@@ -69,13 +86,13 @@ function ResultThumb({ url, name, kind }: { url?: string; name: string; kind: Fi
       />
     )
   }
-  if (kind === "video") {
+  if (file.type.startsWith("video/") || /\.(mp4|mov)$/i.test(file.name)) {
     return (
       <div
         className="size-11 shrink-0 rounded-lg bg-[#1a1c22] grid place-items-center text-[10px] font-semibold uppercase text-muted-foreground"
         aria-hidden="true"
       >
-        MP4
+        {videoThumbLabel(file)}
       </div>
     )
   }
@@ -116,11 +133,18 @@ function revokeTracked(urls: MutableRefObject<string[]>, url?: string) {
   urls.current = urls.current.filter((entry) => entry !== url)
 }
 
-function mapVideoApiError(error: unknown): string {
-  if (error instanceof ShrinkcordApiError) return error.message
-  if (error instanceof DOMException && error.name === "AbortError") return "Canceled."
-  if (error instanceof Error) return error.message
-  return "Could not process this video. Try again."
+function mapVideoApiError(error: unknown): { message: string; canRetry: boolean } {
+  if (error instanceof ShrinkcordApiError) {
+    return {
+      message: error.message,
+      canRetry: error.retriesExhausted === true,
+    }
+  }
+  if (error instanceof DOMException && error.name === "AbortError") {
+    return { message: "Canceled.", canRetry: false }
+  }
+  if (error instanceof Error) return { message: error.message, canRetry: false }
+  return { message: "Could not process this video. Try again.", canRetry: true }
 }
 
 export function Compressor() {
@@ -131,6 +155,7 @@ export function Compressor() {
   const videoRunning = useRef(false)
   const urls = useRef<string[]>([])
   const videoControllers = useRef<Map<string, AbortController>>(new Map())
+  const videoAttempts = useRef<Map<string, ReturnType<typeof createVideoJobAttempt>>>(new Map())
 
   useEffect(() => {
     const tracked = urls
@@ -157,7 +182,8 @@ export function Compressor() {
         if (!current) break
         update(current.id, { status: "working", progress: 4 })
 
-        if (!acceptedType(current.file)) {
+        const classified = await classifyFileAsync(current.file)
+        if (classified.kind !== "image") {
           update(current.id, { status: "error", progress: 0, error: "Use a JPEG, PNG, or WebP." })
           continue
         }
@@ -189,33 +215,54 @@ export function Compressor() {
     }
   }
 
+  const mapApiStatusToUi = (apiStatus: string): VideoItemStatus => {
+    if (apiStatus === "QUEUED") return "job_queued"
+    if (apiStatus === "PROCESSING") return "processing"
+    return "processing"
+  }
+
   const processVideo = async (itemId: string) => {
     const item = itemsRef.current.find(
       (entry): entry is VideoQueueItem => entry.kind === "video" && entry.id === itemId,
     )
-    if (!item || item.status !== "queued") return
+    if (!item) return
+    if (item.status !== "queued" && !(item.status === "error" && item.canRetry)) return
 
     const controller = new AbortController()
     videoControllers.current.set(itemId, controller)
-    update(itemId, { status: "uploading", uploadProgress: 0, compressProgress: 0 })
+    update(itemId, {
+      status: "uploading",
+      uploadProgress: 0,
+      compressProgress: 0,
+      downloadProgress: 0,
+      error: undefined,
+      canRetry: false,
+    })
 
-    const attempt = createVideoJobAttempt(item.file, DEFAULT_VIDEO_TARGET_BYTES)
+    let attempt = videoAttempts.current.get(itemId)
+    if (!attempt) {
+      attempt = createVideoJobAttempt(item.file, DEFAULT_VIDEO_TARGET_BYTES)
+      videoAttempts.current.set(itemId, attempt)
+    }
+
     try {
       const { jobId } = await submitVideoJob({
         file: item.file,
         targetSizeBytes: DEFAULT_VIDEO_TARGET_BYTES,
         attempt,
         signal: controller.signal,
-        onProgress: (percent) => update(itemId, { uploadProgress: percent }),
+        onProgress: (percent) => update(itemId, { status: "uploading", uploadProgress: percent }),
+        onRateLimited: () => update(itemId, { status: "server_busy" }),
       })
       if (!itemsRef.current.some((entry) => entry.id === itemId)) return
-      update(itemId, { jobId, status: "processing", uploadProgress: 100, compressProgress: 0 })
+      update(itemId, { jobId, status: "job_queued", uploadProgress: 100, compressProgress: 0 })
 
       const terminal = await monitorVideoJob(jobId, {
         signal: controller.signal,
         pollIntervalMs: 2_000,
         onJob: (job) => {
           update(itemId, {
+            status: mapApiStatusToUi(job.status),
             compressProgress: job.progress,
             outputBytes: job.output_bytes ?? undefined,
           })
@@ -239,12 +286,22 @@ export function Compressor() {
         return
       }
 
-      const output = await fetchVideoJobOutput(jobId, { signal: controller.signal })
+      update(itemId, { status: "downloading", downloadProgress: 0 })
+      const output = await fetchVideoJobOutput(jobId, {
+        signal: controller.signal,
+        onProgress: (loaded, total) => {
+          const percent = total && total > 0
+            ? Math.min(99, Math.round((loaded / total) * 100))
+            : 0
+          update(itemId, { downloadProgress: percent })
+        },
+      })
       const downloadUrl = URL.createObjectURL(output.blob)
       urls.current.push(downloadUrl)
       update(itemId, {
         status: "done",
         compressProgress: 100,
+        downloadProgress: 100,
         outputBytes: output.bytes,
         downloadUrl,
       })
@@ -254,7 +311,8 @@ export function Compressor() {
         update(itemId, { status: "canceled" })
         return
       }
-      update(itemId, { status: "error", error: mapVideoApiError(error) })
+      const mapped = mapVideoApiError(error)
+      update(itemId, { status: "error", error: mapped.message, canRetry: mapped.canRetry })
     } finally {
       videoControllers.current.delete(itemId)
     }
@@ -293,6 +351,10 @@ export function Compressor() {
           progress: 0,
         })
       } else if (classified.kind === "video") {
+        if (!videoApiEnabled) {
+          rejected.push(`${file.name} (video API not configured)`)
+          continue
+        }
         const id = crypto.randomUUID()
         newVideos.push({
           kind: "video",
@@ -301,6 +363,7 @@ export function Compressor() {
           status: "precheck",
           uploadProgress: 0,
           compressProgress: 0,
+          downloadProgress: 0,
         })
         void (async () => {
           const precheck = await probeVideoDuration(file)
@@ -318,7 +381,7 @@ export function Compressor() {
     }
 
     if (rejected.length) {
-      setClassifyError(`${rejected.join(", ")} is not a supported image or video.`)
+      setClassifyError(`${rejected.join(", ")} is not supported or video upload is unavailable.`)
     }
 
     if (newImages.length === 0 && newVideos.length === 0) return
@@ -342,12 +405,17 @@ export function Compressor() {
     void drainVideos()
   }
 
+  const stopVideoWork = async (target: VideoQueueItem) => {
+    const controller = videoControllers.current.get(target.id)
+    controller?.abort()
+    if (target.jobId) await requestServerJobCancel(target.jobId)
+  }
+
   const removeItem = (id: string) => {
     const target = itemsRef.current.find((item) => item.id === id)
     if (!target) return
-    const controller = videoControllers.current.get(id)
-    controller?.abort()
-    videoControllers.current.delete(id)
+    if (target.kind === "video") void stopVideoWork(target)
+    videoAttempts.current.delete(id)
     if (target.kind === "image") {
       revokeTracked(urls, target.thumbUrl)
       revokeTracked(urls, target.downloadUrl)
@@ -363,24 +431,23 @@ export function Compressor() {
       (item): item is VideoQueueItem => item.kind === "video" && item.id === id,
     )
     if (!target) return
-    const controller = videoControllers.current.get(id)
-    if (controller) {
-      controller.abort()
-      return
-    }
-    if (target.jobId && (target.status === "processing" || target.status === "uploading")) {
-      try {
-        await cancelShrinkcordJob(target.jobId)
-        update(id, { status: "canceled" })
-      } catch {
-        update(id, { error: "Cancellation could not be confirmed. Status may still update." })
-      }
-    }
+    await stopVideoWork(target)
+    update(id, { status: "canceled" })
+  }
+
+  const retryVideo = (id: string) => {
+    videoAttempts.current.delete(id)
+    update(id, { status: "queued", error: undefined, canRetry: false })
+    void drainVideos()
   }
 
   const clearAll = () => {
+    for (const item of itemsRef.current) {
+      if (item.kind === "video") void stopVideoWork(item)
+    }
     for (const controller of videoControllers.current.values()) controller.abort()
     videoControllers.current.clear()
+    videoAttempts.current.clear()
     for (const item of itemsRef.current) {
       if (item.kind === "image") {
         revokeTracked(urls, item.thumbUrl)
@@ -443,12 +510,17 @@ export function Compressor() {
     setTimeout(() => URL.revokeObjectURL(url), 0)
   }
 
+  const videoDisabledMessage = videoApiEnabled ? null : VIDEO_API_DISABLED_MESSAGE
+
   return (
     <div
       id="shrink"
       className="scroll-mt-24 rounded-2xl border border-border bg-card p-3 shadow-[0_30px_60px_-30px_rgba(0,0,0,0.6)] sm:p-4"
     >
-      <MediaDropZone onFiles={(files) => void enqueueFiles(files)} />
+      <MediaDropZone
+        onFiles={(files) => void enqueueFiles(files)}
+        videoDisabledMessage={videoDisabledMessage}
+      />
       {classifyError ? (
         <p className="mt-3 text-sm text-destructive" role="alert">
           {classifyError}
@@ -464,7 +536,7 @@ export function Compressor() {
               <ResultThumb
                 url={item.kind === "image" ? item.thumbUrl : undefined}
                 name={item.file.name}
-                kind={item.kind}
+                file={item.file}
               />
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold text-foreground">{item.file.name}</p>
@@ -486,7 +558,12 @@ export function Compressor() {
                     Download
                   </Button>
                 ) : null}
-                {item.kind === "video" && (item.status === "uploading" || item.status === "processing") ? (
+                {item.kind === "video" && item.canRetry ? (
+                  <Button type="button" size="sm" variant="outline" onClick={() => retryVideo(item.id)}>
+                    Retry
+                  </Button>
+                ) : null}
+                {item.kind === "video" && ["uploading", "server_busy", "job_queued", "processing", "downloading"].includes(item.status) ? (
                   <Button type="button" size="sm" variant="outline" onClick={() => void cancelVideo(item.id)}>
                     Cancel
                   </Button>
@@ -514,14 +591,19 @@ export function Compressor() {
                 </Button>
               ) : null}
               {item.status === "error" && item.error ? (
-                <div className="col-span-3 flex items-start gap-2 border-t border-border pt-2 text-[12.5px] text-destructive sm:col-start-2 sm:col-span-2" role="alert">
+                <div className="col-span-3 flex flex-wrap items-start gap-2 border-t border-border pt-2 text-[12.5px] text-destructive sm:col-start-2 sm:col-span-2" role="alert">
                   <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
                   <span>{item.error}</span>
+                  {item.kind === "video" && item.canRetry ? (
+                    <Button type="button" size="sm" variant="outline" onClick={() => retryVideo(item.id)}>
+                      Retry
+                    </Button>
+                  ) : null}
                 </div>
               ) : null}
               {item.kind === "image" && item.result?.flattenedTransparency ? (
                 <div className="col-span-3 border-t border-border pt-2 text-[12.5px] text-muted-foreground sm:col-start-2 sm:col-span-2">
-                  Saved as JPEG. Transparency was flattened onto white so the file could get under 19.5 MB.
+                  Saved as JPEG. Transparency was flattened onto white so the file could get under 19.5 MiB.
                 </div>
               ) : item.kind === "image" && item.result?.convertedFromPng ? (
                 <div className="col-span-3 border-t border-border pt-2 text-[12.5px] text-muted-foreground sm:col-start-2 sm:col-span-2">
@@ -537,7 +619,7 @@ export function Compressor() {
                 <div className="col-span-3 flex items-start gap-2 border-t border-border pt-2 text-[12.5px] text-destructive sm:col-start-2 sm:col-span-2">
                   <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
                   <span>
-                    Still over 19.5 MB. Smallest the browser could make is {formatMegabytes(item.result.outputBytes)}.
+                    Still over 19.5 MiB. Smallest the browser could make is {formatMegabytes(item.result.outputBytes)}.
                   </span>
                 </div>
               ) : null}
@@ -567,6 +649,7 @@ export function Compressor() {
 }
 
 function ImageItemMeta({ item }: { item: ImageQueueItem }) {
+  const progressValue = item.status === "working" ? Math.max(1, Math.round(item.progress)) : item.progress
   return (
     <>
       <div className="meta mt-0.5 flex flex-wrap items-center gap-2 text-[12.5px] text-muted-foreground">
@@ -595,7 +678,7 @@ function ImageItemMeta({ item }: { item: ImageQueueItem }) {
         {item.status === "working" ? (
           <>
             <span className="font-mono text-xs tabular-nums">{formatMegabytes(item.file.size)}</span>
-            <Badge variant="shrinking">Shrinking · {Math.max(1, Math.round(item.progress))}%</Badge>
+            <Badge variant="shrinking">Shrinking · {progressValue}%</Badge>
           </>
         ) : null}
         {item.status === "error" ? (
@@ -609,25 +692,28 @@ function ImageItemMeta({ item }: { item: ImageQueueItem }) {
         ) : null}
       </div>
       {item.status === "working" ? (
-        <Progress
-          value={item.progress}
-          className="mt-1.5 h-1 rounded bg-[#33363d] [&>[data-slot=progress-indicator]]:bg-brand"
-          aria-label="Shrink progress"
-        />
+        <>
+          <Progress value={progressValue} className="mt-1.5 h-1 rounded bg-[#33363d] [&>[data-slot=progress-indicator]]:bg-brand" aria-label="Shrink progress" />
+          <p className="sr-only" role="status">Shrinking {progressValue} percent</p>
+        </>
       ) : null}
     </>
   )
 }
 
 function VideoItemMeta({ item }: { item: VideoQueueItem }) {
+  const uploadValue = Math.min(item.uploadProgress, 99)
+  const compressValue = Math.min(item.compressProgress, 99)
+  const downloadValue = Math.min(item.downloadProgress, 99)
+
   const snapshot =
     item.status === "uploading"
-      ? videoProgressSnapshot({ phase: "uploading", uploadPercent: item.uploadProgress, compressPercent: 0 })
+      ? videoProgressSnapshot({ phase: "uploading", uploadPercent: uploadValue, compressPercent: 0 })
       : item.status === "processing"
         ? videoProgressSnapshot({
             phase: "compressing",
             uploadPercent: 100,
-            compressPercent: item.compressProgress,
+            compressPercent: compressValue,
           })
         : item.status === "done"
           ? videoProgressSnapshot({
@@ -637,6 +723,19 @@ function VideoItemMeta({ item }: { item: VideoQueueItem }) {
               completed: true,
             })
           : null
+
+  const srProgress =
+    item.status === "uploading"
+      ? `Uploading ${uploadValue} percent`
+      : item.status === "downloading"
+        ? `Downloading ${downloadValue} percent`
+        : item.status === "processing"
+          ? `Compressing ${compressValue} percent`
+          : snapshot
+            ? snapshot.phase === "completed"
+              ? "Video ready"
+              : undefined
+            : undefined
 
   return (
     <>
@@ -653,35 +752,36 @@ function VideoItemMeta({ item }: { item: VideoQueueItem }) {
         ) : null}
         {item.status === "precheck" ? <Badge variant="queued">Checking…</Badge> : null}
         {item.status === "queued" ? <Badge variant="queued">Queued</Badge> : null}
-        {item.status === "uploading" ? <Badge variant="shrinking">Uploading · {item.uploadProgress}%</Badge> : null}
+        {item.status === "server_busy" ? <Badge variant="shrinking">Server busy, retrying</Badge> : null}
+        {item.status === "uploading" ? <Badge variant="shrinking">Uploading · {uploadValue}%</Badge> : null}
+        {item.status === "job_queued" ? <Badge variant="queued">Queued on server</Badge> : null}
         {item.status === "processing" ? (
-          <Badge variant="shrinking">Compressing · {Math.min(item.compressProgress, 99)}%</Badge>
+          <Badge variant="shrinking">Compressing · {compressValue}%</Badge>
         ) : null}
+        {item.status === "downloading" ? <Badge variant="shrinking">Downloading · {downloadValue}%</Badge> : null}
         {item.status === "error" ? <Badge variant="destructive">Failed</Badge> : null}
         {item.status === "canceled" ? <Badge variant="outline">Canceled</Badge> : null}
       </div>
       {item.status === "uploading" ? (
-        <Progress
-          value={item.uploadProgress}
-          className="mt-1.5 h-1 rounded bg-[#33363d] [&>[data-slot=progress-indicator]]:bg-brand"
-          aria-label="Video upload progress"
-        />
+        <>
+          <Progress value={uploadValue} className="mt-1.5 h-1 rounded bg-[#33363d] [&>[data-slot=progress-indicator]]:bg-brand" aria-label="Video upload progress" />
+          <p className="sr-only" role="status">{srProgress}</p>
+        </>
       ) : null}
       {item.status === "processing" ? (
-        <Progress
-          value={Math.min(item.compressProgress, 99)}
-          className="mt-1.5 h-1 rounded bg-[#33363d] [&>[data-slot=progress-indicator]]:bg-brand"
-          aria-label="Video compression progress"
-        />
+        <>
+          <Progress value={compressValue} className="mt-1.5 h-1 rounded bg-[#33363d] [&>[data-slot=progress-indicator]]:bg-brand" aria-label="Video compression progress" />
+          <p className="sr-only" role="status">{srProgress}</p>
+        </>
       ) : null}
-      {snapshot ? (
-        <p className="sr-only" role="status">
-          {snapshot.phase === "uploading"
-            ? `Upload ${snapshot.uploadPercent} percent`
-            : snapshot.phase === "compressing"
-              ? `Compress ${snapshot.compressPercent} percent`
-              : "Video ready"}
-        </p>
+      {item.status === "downloading" ? (
+        <>
+          <Progress value={downloadValue} className="mt-1.5 h-1 rounded bg-[#33363d] [&>[data-slot=progress-indicator]]:bg-brand" aria-label="Video download progress" />
+          <p className="sr-only" role="status">{srProgress}</p>
+        </>
+      ) : null}
+      {item.status === "server_busy" ? (
+        <p className="sr-only" role="status">Server busy, retrying</p>
       ) : null}
     </>
   )

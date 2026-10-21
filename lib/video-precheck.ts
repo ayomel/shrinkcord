@@ -1,4 +1,4 @@
-import { MAX_VIDEO_BYTES } from "@/lib/video-selection"
+import { validateVideoFile } from "@/lib/video-selection"
 
 export const MAX_VIDEO_DURATION_SECONDS = 600
 
@@ -6,27 +6,20 @@ export type VideoPrecheckResult =
   | { ok: true; durationSeconds: number | null }
   | { ok: false; code: "empty" | "too_large" | "too_long" | "unsupported"; message: string }
 
-export function precheckVideoSize(file: Pick<File, "size">): VideoPrecheckResult | null {
-  if (file.size <= 0) {
-    return { ok: false, code: "empty", message: "This video file is empty. Choose a non-empty MP4 or MOV." }
-  }
-  if (file.size > MAX_VIDEO_BYTES) {
-    return {
-      ok: false,
-      code: "too_large",
-      message: "Choose a video that is 524.288 MB (500 MiB) or smaller.",
-    }
-  }
-  return null
-}
-
 /**
  * Reads duration via `<video preload="metadata">`. If the browser cannot decode
  * the file (e.g. HEVC in Chrome), returns ok with null duration so upload can proceed.
  */
 export function probeVideoDuration(file: File, timeoutMs = 12_000): Promise<VideoPrecheckResult> {
-  const sizeError = precheckVideoSize(file)
-  if (sizeError) return Promise.resolve(sizeError)
+  const validationError = validateVideoFile(file)
+  if (validationError) {
+    const code = validationError.includes("empty")
+      ? "empty"
+      : validationError.includes("524.288")
+        ? "too_large"
+        : "unsupported"
+    return Promise.resolve({ ok: false, code, message: validationError })
+  }
 
   if (typeof document === "undefined") {
     return Promise.resolve({ ok: true, durationSeconds: null })

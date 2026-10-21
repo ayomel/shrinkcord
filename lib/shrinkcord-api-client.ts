@@ -27,17 +27,26 @@ export class ShrinkcordApiError extends Error {
   readonly code: ShrinkcordApiErrorCode
   readonly status?: number
   readonly retryable: boolean
+  readonly retryAfterMs?: number
+  readonly retriesExhausted?: boolean
 
   constructor(
     code: ShrinkcordApiErrorCode,
     message: string,
-    options: { status?: number; retryable?: boolean } = {},
+    options: {
+      status?: number
+      retryable?: boolean
+      retryAfterMs?: number
+      retriesExhausted?: boolean
+    } = {},
   ) {
     super(message)
     this.name = "ShrinkcordApiError"
     this.code = code
     this.status = options.status
     this.retryable = options.retryable ?? false
+    this.retryAfterMs = options.retryAfterMs
+    this.retriesExhausted = options.retriesExhausted ?? false
   }
 }
 
@@ -47,51 +56,132 @@ export type UploadJobOptions = {
   signal?: AbortSignal
   baseUrl?: string
   onUploadProgress?: (loaded: number, total: number) => void
-  /** Milliseconds to wait before retrying a 429. */
-  rateLimitRetryDelayMs?: number
+  onRateLimited?: (retryAfterMs: number, attempt: number) => void
   maxRateLimitRetries?: number
-  /** Test hook: replace the default XHR upload implementation. */
   uploadImpl?: typeof uploadJobWithXhr
+  /** When set, skip re-uploading if a job id was already created. */
+  existingJobId?: string
+}
+
+export type DownloadJobFileOptions = {
+  signal?: AbortSignal
+  baseUrl?: string
+  onProgress?: (loaded: number, total: number | null) => void
 }
 
 export type ShrinkcordApiTransport = {
   uploadJob(options: UploadJobOptions): Promise<{ id: string }>
   getJob(jobId: string, signal?: AbortSignal, baseUrl?: string): Promise<ShrinkcordJob>
-  cancelJob(jobId: string, signal?: AbortSignal, baseUrl?: string): Promise<ShrinkcordJob>
-  downloadJobFile(jobId: string, signal?: AbortSignal, baseUrl?: string): Promise<Blob>
+  cancelJob(jobId: string, signal?: AbortSignal, baseUrl?: string): Promise<ShrinkcordJob | null>
+  downloadJobFile(jobId: string, options?: DownloadJobFileOptions): Promise<Blob>
 }
 
 const CONTROL_TIMEOUT_MS = 15_000
 const UPLOAD_TIMEOUT_MS = 2 * 60 * 60 * 1000
-const DEFAULT_RATE_LIMIT_DELAY_MS = 2_000
-const DEFAULT_RATE_LIMIT_RETRIES = 8
+const DEFAULT_RATE_LIMIT_DELAY_MS = 5_000
+const DEFAULT_RATE_LIMIT_RETRIES = 12
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
-export function mapHttpStatusToError(status: number, bodyText: string): ShrinkcordApiError {
-  const message = extractErrorMessage(bodyText)
+export function parseRetryAfterMs(headerValue: string | null): number {
+  if (!headerValue?.trim()) return DEFAULT_RATE_LIMIT_DELAY_MS
+  const trimmed = headerValue.trim()
+  const seconds = Number(trimmed)
+  if (Number.isFinite(seconds) && seconds >= 0) return Math.max(0, Math.round(seconds * 1000))
+  const date = Date.parse(trimmed)
+  if (Number.isFinite(date)) return Math.max(0, date - Date.now())
+  return DEFAULT_RATE_LIMIT_DELAY_MS
+}
+
+export function mapHttpStatusToError(
+  status: number,
+  bodyText: string,
+  retryAfterMs?: number,
+): ShrinkcordApiError {
   if (status === 413) {
-    return new ShrinkcordApiError("too_large", message || "This video is too large (max 500 MiB).", { status })
+    return new ShrinkcordApiError(
+      "too_large",
+      "Choose a video that is 524.288 MiB (500 MiB) or smaller.",
+      { status },
+    )
   }
   if (status === 415) {
-    return new ShrinkcordApiError("unsupported", message || "Unsupported video format. Use MP4 or MOV.", { status })
+    return new ShrinkcordApiError(
+      "unsupported",
+      "Choose an MP4 or iPhone MOV video file.",
+      { status },
+    )
   }
   if (status === 429) {
-    return new ShrinkcordApiError("server_busy", message || "The server is busy. Waiting to retry…", { status, retryable: true })
+    return new ShrinkcordApiError(
+      "server_busy",
+      "Server busy, retrying.",
+      { status, retryable: true, retryAfterMs },
+    )
   }
-  if (status === 400) {
-    const lower = (message || bodyText).toLowerCase()
-    if (lower.includes("duration") || lower.includes("600")) {
-      return new ShrinkcordApiError("too_long", message || "This video is longer than 10 minutes.", { status })
-    }
-    if (lower.includes("corrupt") || lower.includes("invalid") || lower.includes("probe")) {
-      return new ShrinkcordApiError("corrupt", message || "This video could not be read. Try another file.", { status })
-    }
-    return new ShrinkcordApiError("corrupt", message || "This video could not be accepted.", { status })
+  if (status === 400) return map400Error(bodyText)
+  if (status === 404) {
+    return new ShrinkcordApiError(
+      "unknown",
+      "This video job could not be found.",
+      { status, retryable: false },
+    )
+  }
+  if (status === 409) {
+    return new ShrinkcordApiError(
+      "unknown",
+      "This job already finished.",
+      { status, retryable: false },
+    )
   }
   if (status >= 500) {
-    return new ShrinkcordApiError("unknown", message || "Shrinkcord had a server error. Try again.", { status, retryable: true })
+    return new ShrinkcordApiError(
+      "unknown",
+      "Shrinkcord had a server error. Try again.",
+      { status, retryable: true },
+    )
   }
-  return new ShrinkcordApiError("unknown", message || `Request failed (HTTP ${status}).`, { status })
+  return new ShrinkcordApiError(
+    "unknown",
+    "Could not complete this request. Try again.",
+    { status, retryable: status === 408 },
+  )
+}
+
+function map400Error(bodyText: string): ShrinkcordApiError {
+  const lower = extractErrorMessage(bodyText).toLowerCase()
+  if (lower.includes("duration") || lower.includes("longer than") || lower.includes("601")) {
+    return new ShrinkcordApiError(
+      "too_long",
+      "Choose a video that is 10 minutes or shorter.",
+      { status: 400 },
+    )
+  }
+  if (lower.includes("target") && (lower.includes("size") || lower.includes("bitrate"))) {
+    return new ShrinkcordApiError(
+      "corrupt",
+      "Target size is too small for this video.",
+      { status: 400 },
+    )
+  }
+  if (lower.includes("uuid") || lower.includes("validation failed")) {
+    return new ShrinkcordApiError(
+      "unknown",
+      "This video job ID is invalid.",
+      { status: 400 },
+    )
+  }
+  if (lower.includes("corrupt") || lower.includes("probe") || lower.includes("invalid video")) {
+    return new ShrinkcordApiError(
+      "corrupt",
+      "This video could not be read. Try another file.",
+      { status: 400 },
+    )
+  }
+  return new ShrinkcordApiError(
+    "corrupt",
+    "This video could not be accepted.",
+    { status: 400 },
+  )
 }
 
 function extractErrorMessage(bodyText: string): string {
@@ -113,6 +203,13 @@ function extractErrorMessage(bodyText: string): string {
   return bodyText.trim().slice(0, 240)
 }
 
+function parseProgress(value: unknown): number {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.min(100, Math.max(0, Math.round(value)))
+  }
+  return 0
+}
+
 function parseJob(value: unknown, expectedId?: string): ShrinkcordJob {
   if (!isRecord(value) || typeof value.id !== "string" || !UUID_V4.test(value.id)) {
     throw new ShrinkcordApiError("unknown", "Shrinkcord returned an invalid job response.", { retryable: true })
@@ -120,12 +217,12 @@ function parseJob(value: unknown, expectedId?: string): ShrinkcordJob {
   if (expectedId && value.id.toLowerCase() !== expectedId.toLowerCase()) {
     throw new ShrinkcordApiError("unknown", "Shrinkcord returned a mismatched job ID.", { retryable: false })
   }
-  if (!isJobStatus(value.status) || !Number.isInteger(value.progress)) {
+  if (!isJobStatus(value.status) || value.progress === undefined || value.progress === null) {
     throw new ShrinkcordApiError("unknown", "Shrinkcord returned an invalid job response.", { retryable: true })
   }
 
   const status = value.status
-  const progress = normalizeCompressProgress(status, value.progress as number)
+  const progress = normalizeCompressProgress(status, parseProgress(value.progress))
 
   return {
     id: value.id,
@@ -188,7 +285,7 @@ export function uploadJobWithXhr(
   targetSizeBytes: number,
   signal: AbortSignal,
   onUploadProgress?: (loaded: number, total: number) => void,
-): Promise<{ id: string }> {
+): Promise<{ id: string; retryAfterMs?: number }> {
   return new Promise((resolve, reject) => {
     const request = new XMLHttpRequest()
     let settled = false
@@ -231,7 +328,8 @@ export function uploadJobWithXhr(
         return
       }
       if (request.status === 429) {
-        finish(mapHttpStatusToError(429, body))
+        const retryAfterMs = parseRetryAfterMs(request.getResponseHeader("Retry-After"))
+        finish(mapHttpStatusToError(429, body, retryAfterMs))
         return
       }
       if (request.status === 0) {
@@ -257,30 +355,41 @@ export function uploadJobWithXhr(
 }
 
 export async function uploadShrinkcordJob(options: UploadJobOptions): Promise<{ id: string }> {
+  if (options.existingJobId) return { id: options.existingJobId }
+
   const baseUrl = options.baseUrl ?? getShrinkcordApiBaseUrl()
   const url = shrinkcordApiUrl("/jobs", baseUrl)
   const targetSizeBytes = options.targetSizeBytes ?? 20_000_000
   const signal = options.signal ?? new AbortController().signal
-  const delayMs = options.rateLimitRetryDelayMs ?? DEFAULT_RATE_LIMIT_DELAY_MS
   const maxRetries = options.maxRateLimitRetries ?? DEFAULT_RATE_LIMIT_RETRIES
-
   const uploadImpl = options.uploadImpl ?? uploadJobWithXhr
-  let attempts = 0
+
+  let rateLimitAttempts = 0
   while (true) {
     try {
-      return await uploadImpl(
+      const result = await uploadImpl(
         url,
         options.file,
         targetSizeBytes,
         timedSignal(signal, UPLOAD_TIMEOUT_MS),
         options.onUploadProgress,
       )
+      return { id: result.id }
     } catch (error) {
       if (signal.aborted) throw abortError()
-      if (error instanceof ShrinkcordApiError && error.status === 429 && attempts < maxRetries) {
-        attempts += 1
-        await waitMs(delayMs, signal)
-        continue
+      if (error instanceof ShrinkcordApiError && error.status === 429) {
+        const delayMs = error.retryAfterMs ?? DEFAULT_RATE_LIMIT_DELAY_MS
+        if (rateLimitAttempts < maxRetries) {
+          rateLimitAttempts += 1
+          options.onRateLimited?.(delayMs, rateLimitAttempts)
+          await waitMs(delayMs, signal)
+          continue
+        }
+        throw new ShrinkcordApiError(
+          "server_busy",
+          "Server is busy. Try again in a moment.",
+          { status: 429, retryable: false, retriesExhausted: true },
+        )
       }
       throw error
     }
@@ -319,7 +428,7 @@ export async function getShrinkcordJob(
   const url = shrinkcordApiUrl(`/jobs/${encodeURIComponent(jobId)}`, baseUrl)
   const controlSignal = timedSignal(signal ?? new AbortController().signal, CONTROL_TIMEOUT_MS)
   const { response, text } = await fetchJson(url, { method: "GET", headers: { Accept: "application/json" } }, controlSignal)
-  if (!response.ok) throw mapHttpStatusToError(response.status, text)
+  if (!response.ok) throw mapHttpStatusToError(response.status, text, parseRetryAfterMs(response.headers.get("Retry-After")))
   return parseJob(JSON.parse(text), jobId)
 }
 
@@ -327,33 +436,36 @@ export async function cancelShrinkcordJob(
   jobId: string,
   signal?: AbortSignal,
   baseUrl?: string,
-): Promise<ShrinkcordJob> {
+): Promise<ShrinkcordJob | null> {
   if (!UUID_V4.test(jobId)) {
     throw new ShrinkcordApiError("unknown", "This video job ID is invalid.", { retryable: false })
   }
   const url = shrinkcordApiUrl(`/jobs/${encodeURIComponent(jobId)}`, baseUrl)
   const controlSignal = timedSignal(signal ?? new AbortController().signal, CONTROL_TIMEOUT_MS)
   const { response, text } = await fetchJson(url, { method: "DELETE", headers: { Accept: "application/json" } }, controlSignal)
+  if (response.status === 409) {
+    try {
+      return await getShrinkcordJob(jobId, signal, baseUrl)
+    } catch {
+      return null
+    }
+  }
   if (response.status === 404) throw mapHttpStatusToError(404, text)
   if (!response.ok) throw mapHttpStatusToError(response.status, text)
   try {
-    const parsed: unknown = JSON.parse(text)
-    if (isRecord(parsed) && parsed.status === "CANCELED") {
-      return getShrinkcordJob(jobId, signal, baseUrl)
-    }
+    return await getShrinkcordJob(jobId, signal, baseUrl)
   } catch {
-    // fall through to full job fetch
+    return null
   }
-  return getShrinkcordJob(jobId, signal, baseUrl)
 }
 
 export async function downloadShrinkcordJobFile(
   jobId: string,
-  signal?: AbortSignal,
-  baseUrl?: string,
+  options: DownloadJobFileOptions = {},
 ): Promise<Blob> {
+  const baseUrl = options.baseUrl ?? getShrinkcordApiBaseUrl()
   const url = shrinkcordApiUrl(`/jobs/${encodeURIComponent(jobId)}/file`, baseUrl)
-  const downloadSignal = timedSignal(signal ?? new AbortController().signal, 10 * 60 * 1000)
+  const downloadSignal = timedSignal(options.signal ?? new AbortController().signal, 10 * 60 * 1000)
   let response: Response
   try {
     response = await fetch(url, {
@@ -365,12 +477,37 @@ export async function downloadShrinkcordJobFile(
       signal: downloadSignal,
     })
   } catch {
-    if (signal?.aborted) throw abortError()
+    if (options.signal?.aborted) throw abortError()
     throw new ShrinkcordApiError("network", "The video download connection failed.", { retryable: true })
   }
-  if (!response.ok) throw mapHttpStatusToError(response.status, await response.text().catch(() => ""))
-  const blob = await response.blob()
-  if (!blob.size) throw new ShrinkcordApiError("corrupt", "Shrinkcord returned an empty video file.", { retryable: false })
+  if (!response.ok) {
+    throw mapHttpStatusToError(response.status, await response.text().catch(() => ""))
+  }
+  if (!response.body) {
+    throw new ShrinkcordApiError("corrupt", "Shrinkcord returned an empty video file.", { retryable: false })
+  }
+
+  const lengthHeader = response.headers.get("content-length")
+  const total = lengthHeader && /^\d+$/.test(lengthHeader) ? Number(lengthHeader) : null
+  const reader = response.body.getReader()
+  const chunks: Uint8Array[] = []
+  let loaded = 0
+  options.onProgress?.(0, total)
+
+  while (true) {
+    if (downloadSignal.aborted) throw abortError()
+    const { done, value } = await reader.read()
+    if (done) break
+    if (!value?.byteLength) continue
+    loaded += value.byteLength
+    chunks.push(value)
+    options.onProgress?.(loaded, total)
+  }
+
+  if (loaded === 0) {
+    throw new ShrinkcordApiError("corrupt", "Shrinkcord returned an empty video file.", { retryable: false })
+  }
+  const blob = new Blob(chunks as BlobPart[], { type: "video/mp4" })
   return blob
 }
 
@@ -378,5 +515,5 @@ export const browserShrinkcordApiTransport: ShrinkcordApiTransport = {
   uploadJob: uploadShrinkcordJob,
   getJob: getShrinkcordJob,
   cancelJob: cancelShrinkcordJob,
-  downloadJobFile: downloadShrinkcordJobFile,
+  downloadJobFile: (jobId, options) => downloadShrinkcordJobFile(jobId, options),
 }

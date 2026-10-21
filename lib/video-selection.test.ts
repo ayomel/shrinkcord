@@ -21,7 +21,7 @@ describe("validateVideoFile", () => {
   it("rejects empty files, unsupported types, and files over 500 MiB", () => {
     assert.match(validateVideoFile({ name: "clip.mp4", type: "video/mp4", size: 0 }) ?? "", /empty/i)
     assert.match(validateVideoFile({ name: "clip.avi", type: "video/x-msvideo", size: 1 }) ?? "", /MP4 or/i)
-    assert.match(validateVideoFile({ name: "clip.mp4", type: "video/mp4", size: MAX_VIDEO_BYTES + 1 }) ?? "", /524\.288 MB.*500 MiB/i)
+    assert.match(validateVideoFile({ name: "clip.mp4", type: "video/mp4", size: MAX_VIDEO_BYTES + 1 }) ?? "", /524\.288 MiB.*500 MiB/i)
   })
 })
 

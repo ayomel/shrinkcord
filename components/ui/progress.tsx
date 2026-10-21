@@ -10,9 +10,14 @@ function Progress({
   value,
   ...props
 }: React.ComponentProps<typeof ProgressPrimitive.Root>) {
+  const numericValue = typeof value === "number" ? value : 0
   return (
     <ProgressPrimitive.Root
       data-slot="progress"
+      value={numericValue}
+      aria-valuenow={numericValue}
+      aria-valuemin={0}
+      aria-valuemax={100}
       className={cn(
         "bg-primary/20 relative h-2 w-full overflow-hidden rounded-full",
         className
