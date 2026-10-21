@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
-import { normalizeCompressProgress, videoProgressSnapshot } from "./video-progress.ts"
+import { normalizeCompressProgress, videoProgressSnapshot } from "./videoProgress.ts"
 
 describe("normalizeCompressProgress", () => {
   it("caps in-flight encoding below 100 until completed", () => {

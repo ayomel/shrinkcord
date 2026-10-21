@@ -1,8 +1,8 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import { MIN_TRANSPARENT_WEBP_QUALITY } from "./limits.ts"
-import { preferTransparentWebp } from "./output-strategy.ts"
-import { searchQualityBySize } from "./search-quality.ts"
+import { preferTransparentWebp } from "./outputStrategy.ts"
+import { searchQualityBySize } from "./searchQuality.ts"
 
 describe("preferTransparentWebp", () => {
   it("keeps a WebP that already fits the budget", () => {

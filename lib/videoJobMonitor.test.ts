@@ -1,13 +1,13 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
-import { ShrinkcordApiError } from "./shrinkcord-api-client.ts"
+import { ShrinkcordApiError } from "./shrinkcordApiClient.ts"
 import {
   cancelVideoJob,
   getVideoJob,
   monitorVideoJob,
   VideoJobMonitorError,
-} from "./video-job-monitor.ts"
-import type { ShrinkcordApiTransport, ShrinkcordJob } from "./shrinkcord-api-client.ts"
+} from "./videoJobMonitor.ts"
+import type { ShrinkcordApiTransport, ShrinkcordJob } from "./shrinkcordApiClient.ts"
 
 const jobId = "123e4567-e89b-42d3-a456-426614174000"
 const otherJobId = "123e4567-e89b-42d3-b456-426614174001"

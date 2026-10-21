@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
-import { pngHeaderSuggestsAlpha } from "./png-alpha.ts"
+import { pngHeaderSuggestsAlpha } from "./pngAlpha.ts"
 
 function crc32(buf: Uint8Array) {
   let crc = 0xffffffff

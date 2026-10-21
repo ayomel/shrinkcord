@@ -4,7 +4,7 @@ import {
   fetchVideoJobOutput,
   getVideoOutputFileName,
   MAX_VIDEO_OUTPUT_BYTES,
-} from "./video-job-output.ts"
+} from "./videoJobOutput.ts"
 
 const jobId = "123e4567-e89b-42d3-a456-426614174000"
 const baseUrl = "http://api.test"

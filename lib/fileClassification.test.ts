@@ -4,7 +4,7 @@ import {
   classifyByMagicBytes,
   classifyByMimeAndName,
   classifyFile,
-} from "./file-classification.ts"
+} from "./fileClassification.ts"
 
 describe("classifyByMimeAndName", () => {
   it("recognizes images and videos from MIME and extension", () => {

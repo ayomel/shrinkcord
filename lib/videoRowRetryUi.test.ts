@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
-import { videoRetryButtonCount, videoRetryUiFlags } from "./video-row-retry-ui.ts"
+import { videoRetryButtonCount, videoRetryUiFlags } from "./videoRowRetryUi.ts"
 
 describe("videoRetryUiFlags", () => {
   it("renders exactly one Retry affordance on a failed video row", () => {

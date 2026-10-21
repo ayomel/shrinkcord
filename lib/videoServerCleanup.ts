@@ -1,4 +1,4 @@
-import { cancelShrinkcordJob } from "@/lib/shrinkcord-api-client"
+import { cancelShrinkcordJob } from "@/lib/shrinkcordApiClient"
 
 /** Best-effort DELETE; 409 means the job already finished. */
 export async function requestServerJobCancel(jobId: string): Promise<void> {

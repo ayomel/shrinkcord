@@ -7,7 +7,7 @@ import {
   STORAGE_LINK_EXPIRED_NOTE,
   STORAGE_NOT_SAVED_NOTE,
   buildStorageResultPresentation,
-} from "./storage-result-copy"
+} from "./storageResultCopy"
 
 describe("buildStorageResultPresentation", () => {
   it("derives availability text from expires_at", () => {

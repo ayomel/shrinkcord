@@ -4,9 +4,9 @@ import {
   type ShrinkcordApiTransport,
   type ShrinkcordJob,
   type ShrinkcordJobStatus,
-} from "@/lib/shrinkcord-api-client"
-import { getShrinkcordApiBaseUrl } from "@/lib/shrinkcord-api-url"
-import { normalizeCompressProgress } from "@/lib/video-progress"
+} from "@/lib/shrinkcordApiClient"
+import { getShrinkcordApiBaseUrl } from "@/lib/shrinkcordApiUrl"
+import { normalizeCompressProgress } from "@/lib/videoProgress"
 
 export type VideoJobStatus = ShrinkcordJobStatus
 

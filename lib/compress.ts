@@ -11,9 +11,9 @@ import {
   outputFileName,
   type AcceptedType,
 } from "@/lib/limits"
-import { preferTransparentWebp } from "@/lib/output-strategy"
-import { fileHasTransparency } from "@/lib/png-alpha"
-import { scaleForTarget, searchQualityBySize } from "@/lib/search-quality"
+import { preferTransparentWebp } from "@/lib/outputStrategy"
+import { fileHasTransparency } from "@/lib/pngAlpha"
+import { scaleForTarget, searchQualityBySize } from "@/lib/searchQuality"
 
 export type ShrinkResult = {
   blob: Blob

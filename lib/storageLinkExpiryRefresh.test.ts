@@ -3,7 +3,7 @@ import { describe, it, mock } from "node:test"
 import {
   getStorageLinkExpiryDelayMs,
   scheduleStorageLinkExpiryRefresh,
-} from "./storage-link-expiry-refresh.ts"
+} from "./storageLinkExpiryRefresh.ts"
 
 describe("getStorageLinkExpiryDelayMs", () => {
   it("returns null when the link is already expired or invalid", () => {

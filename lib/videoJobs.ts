@@ -1,7 +1,7 @@
 import {
   browserShrinkcordApiTransport,
   type ShrinkcordApiTransport,
-} from "@/lib/shrinkcord-api-client"
+} from "@/lib/shrinkcordApiClient"
 
 export type VideoJobPhase = "uploading" | "server_busy" | "queued"
 

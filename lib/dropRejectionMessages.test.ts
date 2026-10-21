@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
-import { formatDropClassifyErrors } from "./drop-rejection-messages.ts"
+import { formatDropClassifyErrors } from "./dropRejectionMessages.ts"
 
 describe("formatDropClassifyErrors", () => {
   it("uses wrong-type copy for unsupported files when the video API is on", () => {

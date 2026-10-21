@@ -1,7 +1,7 @@
 import {
   formatStorageAvailabilityLabel,
   isStorageLinkExpired,
-} from "@/lib/shrinkcord-storage-url"
+} from "@/lib/shrinkcordStorageUrl"
 
 export const STORAGE_LINK_EXPIRED_NOTE = "Link expired"
 

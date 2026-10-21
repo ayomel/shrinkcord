@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import type { ShrinkResult } from "./compress.ts"
-import { runShrink } from "./run-shrink.ts"
+import { runShrink } from "./runShrink.ts"
 
 function fakeResult(overrides: Partial<ShrinkResult> = {}): ShrinkResult {
   return {
