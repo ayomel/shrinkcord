@@ -1,18 +1,20 @@
 "use client"
 
-import { cn } from "@/lib/utils"
+import { useId, useRef, useState } from "react"
+
 import { Upload } from "lucide-react"
 import { motion } from "motion/react"
-import { useId, useRef, useState } from "react"
+
+import { cn } from "@/lib/utils"
+
+const ACCEPT =
+  "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp,video/mp4,video/quicktime,.mp4,.mov"
 
 type MediaDropZoneProps = {
   onFiles: (files: File[]) => void
   disabled?: boolean
   videoDisabledMessage?: string | null
 }
-
-const ACCEPT =
-  "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp,video/mp4,video/quicktime,.mp4,.mov"
 
 export function MediaDropZone({ onFiles, disabled = false, videoDisabledMessage }: MediaDropZoneProps) {
   const inputId = useId()
