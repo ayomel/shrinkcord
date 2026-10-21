@@ -11,7 +11,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "next typegen && tsc --noEmit && tsx --test lib/output-strategy.test.ts lib/file-classification.test.ts lib/video-progress.test.ts lib/shrinkcord-api-url.test.ts lib/shrinkcord-api-client.test.ts lib/video-selection.test.ts lib/video-jobs.test.ts lib/video-job-monitor.test.ts lib/video-job-output.test.ts lib/png-alpha.test.ts lib/run-shrink.test.ts lib/search-quality.test.ts"
+    "test": "next typegen && tsc --noEmit && tsx --test lib/output-strategy.test.ts lib/file-classification.test.ts lib/video-progress.test.ts lib/shrinkcord-api-url.test.ts lib/shrinkcord-api-client.test.ts lib/video-selection.test.ts lib/video-jobs.test.ts lib/video-job-monitor.test.ts lib/video-job-output.test.ts lib/png-alpha.test.ts lib/run-shrink.test.ts lib/search-quality.test.ts lib/video-row-retry-ui.test.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

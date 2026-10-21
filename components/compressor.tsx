@@ -20,6 +20,7 @@ import { probeVideoDuration } from "@/lib/video-precheck"
 import { requestServerJobCancel } from "@/lib/video-server-cleanup"
 import { createVideoJobAttempt, submitVideoJob } from "@/lib/video-jobs"
 import { DEFAULT_VIDEO_TARGET_BYTES } from "@/lib/video-selection"
+import { videoRetryUiFlags } from "@/lib/video-row-retry-ui"
 import { zipSync } from "fflate"
 import { AlertCircle, X } from "lucide-react"
 import { useCallback, useEffect, useRef, useState, type MutableRefObject } from "react"
@@ -381,7 +382,10 @@ export function Compressor() {
     }
 
     if (rejected.length) {
-      setClassifyError(`${rejected.join(", ")} is not supported or video upload is unavailable.`)
+      const names = rejected.join(", ")
+      setClassifyError(
+        `Could not add ${names}. Choose a JPEG, PNG, WebP, MP4, or MOV file. Video upload is unavailable on this site; images still work in your browser.`,
+      )
     }
 
     if (newImages.length === 0 && newVideos.length === 0) return
@@ -528,7 +532,17 @@ export function Compressor() {
       ) : null}
       {items.length > 0 ? (
         <ul aria-live="polite" className="mt-3 grid gap-2">
-          {items.map((item) => (
+          {items.map((item) => {
+            const retryUi =
+              item.kind === "video"
+                ? videoRetryUiFlags({
+                    kind: item.kind,
+                    status: item.status,
+                    canRetry: item.canRetry,
+                    error: item.error,
+                  })
+                : { toolbar: false, errorPanel: false }
+            return (
             <li
               key={item.id}
               className="grid grid-cols-[44px_1fr_auto] items-center gap-3 rounded-[10px] border border-border bg-surface-2 p-2.5 sm:px-3"
@@ -558,7 +572,7 @@ export function Compressor() {
                     Download
                   </Button>
                 ) : null}
-                {item.kind === "video" && item.canRetry ? (
+                {retryUi.toolbar ? (
                   <Button type="button" size="sm" variant="outline" onClick={() => retryVideo(item.id)}>
                     Retry
                   </Button>
@@ -594,7 +608,7 @@ export function Compressor() {
                 <div className="col-span-3 flex flex-wrap items-start gap-2 border-t border-border pt-2 text-[12.5px] text-destructive sm:col-start-2 sm:col-span-2" role="alert">
                   <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
                   <span>{item.error}</span>
-                  {item.kind === "video" && item.canRetry ? (
+                  {retryUi.errorPanel ? (
                     <Button type="button" size="sm" variant="outline" onClick={() => retryVideo(item.id)}>
                       Retry
                     </Button>
@@ -624,7 +638,8 @@ export function Compressor() {
                 </div>
               ) : null}
             </li>
-          ))}
+            )
+          })}
         </ul>
       ) : null}
       {items.length > 0 ? (

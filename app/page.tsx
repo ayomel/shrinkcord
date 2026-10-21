@@ -17,7 +17,7 @@ const steps = [
   },
   {
     title: "Download and send",
-    copy: "The result is 19.5 MB or under, named with -discord, ready for Discord’s free upload.",
+    copy: "The result is 19.5 MB or under, named with -discord, ready for Discord's free upload.",
   },
 ]
 
@@ -71,10 +71,10 @@ export default function Home() {
         <div className="grid items-center gap-6 lg:grid-cols-[1fr_1.05fr] lg:gap-14">
           <div>
             <span className="inline-flex items-center gap-2 rounded-full border border-[rgba(88,101,242,0.3)] bg-[rgba(88,101,242,0.12)] px-2.5 py-1 text-[13px] font-semibold text-brand-text">
-              For Discord’s free 20 MB upload limit
+              For Discord&apos;s free 20 MB upload limit
             </span>
             <h1 className="mt-3.5 text-[36px] leading-[1.05] font-extrabold tracking-[-0.035em] text-foreground lg:mt-5 lg:text-[54px]">
-              Get any image under Discord’s{" "}
+              Get any image under Discord&apos;s{" "}
               <em className="not-italic text-brand-text">20&nbsp;MB</em> limit.
             </h1>
             <p className="lede mt-3 max-w-[30em] text-base text-muted-foreground lg:mt-[18px] lg:text-lg">
@@ -140,7 +140,7 @@ export default function Home() {
                   {step.copy.includes("-discord") ? (
                     <>
                       The result is 19.5 MB or under, named with <code>-discord</code>, ready for
-                      Discord’s free upload.
+                      Discord&apos;s free upload.
                     </>
                   ) : (
                     step.copy
