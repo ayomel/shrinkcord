@@ -16,7 +16,7 @@ describe("buildStorageResultPresentation", () => {
     })
     assert.equal(view?.kind, "saved")
     if (view?.kind === "saved") {
-      assert.match(view.availabilityLabel, /Available for \d+ days/)
+      assert.match(view.availabilityLabel, /Available for \d+ days|Available for 1 day|Available for less than a day/)
     }
   })
 

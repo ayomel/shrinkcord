@@ -32,6 +32,7 @@ export type UploadCompressedBlobOptions = {
   signal?: AbortSignal
   baseUrl?: string
   maxCollisionAttempts?: number
+  postTimeoutMs?: number
   onProgress?: (percent: number) => void
   fetchImpl?: typeof fetch
   putImpl?: typeof putBlobWithXhr
@@ -39,11 +40,22 @@ export type UploadCompressedBlobOptions = {
 }
 
 const DEFAULT_COLLISION_ATTEMPTS = 5
-const POST_UPLOAD_TIMEOUT_MS = 15_000
+export const POST_UPLOAD_TIMEOUT_MS = 15_000
 const PUT_TIMEOUT_MIN_MS = 60_000
 const PUT_TIMEOUT_MAX_MS = 30 * 60 * 1000
 
-function abortError(): DOMException {
+export class StorageTimeoutError extends Error {
+  constructor(message = "The online save timed out.") {
+    super(message)
+    this.name = "StorageTimeoutError"
+  }
+}
+
+export function isStorageUserAbort(error: unknown): boolean {
+  return error instanceof DOMException && error.name === "AbortError"
+}
+
+function userAbortError(): DOMException {
   return new DOMException("The request was canceled.", "AbortError")
 }
 
@@ -56,8 +68,14 @@ function timedSignal(signal: AbortSignal, timeoutMs: number): AbortSignal {
   return AbortSignal.any([signal, timeout])
 }
 
+function throwIfAborted(userSignal: AbortSignal, controlSignal: AbortSignal): void {
+  if (userSignal.aborted) throw userAbortError()
+  if (controlSignal.aborted) throw new StorageTimeoutError()
+}
+
 export function putUploadTimeoutMs(byteLength: number): number {
-  const scaled = 15_000 + Math.ceil(byteLength / 1024) * 2_000
+  const mebibytes = byteLength / (1024 * 1024)
+  const scaled = 15_000 + Math.ceil(mebibytes) * 2_000
   return Math.min(PUT_TIMEOUT_MAX_MS, Math.max(PUT_TIMEOUT_MIN_MS, scaled))
 }
 
@@ -122,12 +140,19 @@ export type CreateUploadSessionInput = {
 
 export async function createShrinkcordUploadSession(
   input: CreateUploadSessionInput,
-  options: { baseUrl?: string; signal?: AbortSignal; fetchImpl?: typeof fetch } = {},
+  options: {
+    baseUrl?: string
+    signal?: AbortSignal
+    fetchImpl?: typeof fetch
+    postTimeoutMs?: number
+  } = {},
 ): Promise<ShrinkcordUploadSession> {
   const fetchImpl = options.fetchImpl ?? fetch
   const baseUrl = options.baseUrl ?? getShrinkcordApiBaseUrl()
   const url = shrinkcordApiUrl("/uploads", baseUrl)
-  const controlSignal = timedSignal(options.signal ?? new AbortController().signal, POST_UPLOAD_TIMEOUT_MS)
+  const userSignal = options.signal ?? new AbortController().signal
+  const postTimeoutMs = options.postTimeoutMs ?? POST_UPLOAD_TIMEOUT_MS
+  const controlSignal = timedSignal(userSignal, postTimeoutMs)
   let response: Response
   try {
     response = await fetchImpl(url, {
@@ -147,7 +172,7 @@ export async function createShrinkcordUploadSession(
       signal: controlSignal,
     })
   } catch {
-    if (options.signal?.aborted || controlSignal.aborted) throw abortError()
+    throwIfAborted(userSignal, controlSignal)
     throw new ShrinkcordApiError("network", "Could not reach Shrinkcord. Check your connection and try again.", { retryable: true })
   }
   const text = await response.text()
@@ -183,7 +208,7 @@ export function putBlobWithXhr(
     }
     const onAbort = () => {
       request.abort()
-      finish(abortError())
+      finish(userAbortError())
     }
 
     request.open("PUT", uploadUrl)
@@ -200,9 +225,9 @@ export function putBlobWithXhr(
       finish(new ShrinkcordApiError("network", "The upload connection failed.", { retryable: true }))
     })
     request.addEventListener("timeout", () => {
-      finish(new ShrinkcordApiError("network", "The upload took too long.", { retryable: true }))
+      finish(new StorageTimeoutError())
     })
-    request.addEventListener("abort", () => finish(abortError()))
+    request.addEventListener("abort", () => finish(userAbortError()))
     signal.addEventListener("abort", onAbort, { once: true })
     if (signal.aborted) {
       onAbort()
@@ -225,11 +250,12 @@ export async function uploadCompressedBlobToStorage(
   const fetchImpl = options.fetchImpl ?? fetch
   const putImpl = options.putImpl ?? putBlobWithXhr
   const createSessionImpl = options.createSessionImpl ?? createShrinkcordUploadSession
+  const postTimeoutMs = options.postTimeoutMs
 
   let previousKey: string | undefined
 
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-    if (signal.aborted) throw abortError()
+    if (signal.aborted) throw userAbortError()
     try {
       const session = await createSessionImpl(
         {
@@ -238,7 +264,7 @@ export async function uploadCompressedBlobToStorage(
           size: options.blob.size,
           previous_key: previousKey,
         },
-        { baseUrl, signal, fetchImpl },
+        { baseUrl, signal, fetchImpl, postTimeoutMs },
       )
       const status = await putImpl(
         session.upload_url,
@@ -265,7 +291,10 @@ export async function uploadCompressedBlobToStorage(
       }
       return { ok: false, reason: "rejected" }
     } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") throw error
+      if (isStorageUserAbort(error)) throw error
+      if (error instanceof StorageTimeoutError) {
+        return { ok: false, reason: "network" }
+      }
       if (error instanceof ShrinkcordApiError && error.code === "too_large") {
         return { ok: false, reason: "rejected" }
       }

@@ -37,35 +37,34 @@ function stripFencedCodeBlocks(text) {
  * @param {string} text
  * @returns {string}
  */
-function isOrderedListMarkerLine(line) {
-  return /^\s*\d+\.\s/.test(line)
+function isListMarkerLine(line) {
+  return /^\s*(?:[-*+]|\d+\.)\s/.test(line)
 }
 
 function stripIndentedCodeBlocks(text) {
   const lines = text.split("\n")
   const out = []
   let index = 0
-  let orderedListItemOpen = false
-  let blankInsideOrderedItem = false
+  let openListItem = false
+  let sawIndentedContinuation = false
 
   while (index < lines.length) {
     const line = lines[index]
     const trimmed = line.trim()
+    const indented = /^(?: {4}|\t)/.test(line)
 
-    if (isOrderedListMarkerLine(line)) {
-      orderedListItemOpen = true
-      blankInsideOrderedItem = false
+    if (isListMarkerLine(line)) {
+      openListItem = true
+      sawIndentedContinuation = false
       out.push(line)
       index += 1
       continue
     }
 
-    if (!/^(?: {4}|\t)/.test(line)) {
-      if (trimmed !== "") {
-        orderedListItemOpen = false
-        blankInsideOrderedItem = false
-      } else if (orderedListItemOpen) {
-        blankInsideOrderedItem = true
+    if (!indented) {
+      if (trimmed !== "" && !isListMarkerLine(line)) {
+        openListItem = false
+        sawIndentedContinuation = false
       }
       out.push(line)
       index += 1
@@ -76,13 +75,16 @@ function stripIndentedCodeBlocks(text) {
     const followsBlankLine = out.length === 0 || previous.trim() === ""
     const dedented = line.replace(/^(?: {4}|\t)+/, "")
     const isNestedListItem = /^(?:[-*+]|\d+\.)\s/.test(dedented)
-    const isOrderedContinuation = orderedListItemOpen && blankInsideOrderedItem
+    const isListContinuation = openListItem && (followsBlankLine || sawIndentedContinuation)
 
-    if (!followsBlankLine || isNestedListItem || isOrderedContinuation) {
-      if (isOrderedContinuation) {
-        orderedListItemOpen = false
-        blankInsideOrderedItem = false
-      }
+    if (isNestedListItem || isListContinuation) {
+      sawIndentedContinuation = true
+      out.push(line)
+      index += 1
+      continue
+    }
+
+    if (!followsBlankLine) {
       out.push(line)
       index += 1
       continue

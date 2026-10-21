@@ -16,7 +16,8 @@ import {
   isShrinkcordVideoApiConfigured,
   VIDEO_API_DISABLED_MESSAGE,
 } from "@/lib/shrinkcord-api-url"
-import { uploadCompressedBlobToStorage } from "@/lib/shrinkcord-storage-upload"
+import { enqueueStorageSaveByFileName } from "@/lib/shrinkcord-storage-queue"
+import { isStorageUserAbort, uploadCompressedBlobToStorage } from "@/lib/shrinkcord-storage-upload"
 import { getVideoOutputFileName, fetchVideoJobOutput } from "@/lib/video-job-output"
 import { monitorVideoJob } from "@/lib/video-job-monitor"
 import { videoProgressSnapshot } from "@/lib/video-progress"
@@ -242,16 +243,18 @@ export function Compressor() {
 
           const controller = new AbortController()
           imageStorageControllers.current.set(current.id, controller)
-          void uploadCompressedBlobToStorage({
-            blob: result.blob,
-            fileName: result.fileName,
-            contentType: result.outputType,
-            signal: controller.signal,
-            onProgress: (percent) => {
-              if (!itemsRef.current.some((entry) => entry.id === current.id)) return
-              update(current.id, { uploadProgress: percent, storageUploadInProgress: true })
-            },
-          })
+          void enqueueStorageSaveByFileName(result.fileName, () =>
+            uploadCompressedBlobToStorage({
+              blob: result.blob,
+              fileName: result.fileName,
+              contentType: result.outputType,
+              signal: controller.signal,
+              onProgress: (percent) => {
+                if (!itemsRef.current.some((entry) => entry.id === current.id)) return
+                update(current.id, { uploadProgress: percent, storageUploadInProgress: true })
+              },
+            }),
+          )
             .then((storage) => {
               imageStorageControllers.current.delete(current.id)
               if (!itemsRef.current.some((entry) => entry.id === current.id)) return
@@ -273,7 +276,7 @@ export function Compressor() {
             })
             .catch((error) => {
               imageStorageControllers.current.delete(current.id)
-              if (error instanceof DOMException && error.name === "AbortError") return
+              if (isStorageUserAbort(error)) return
               if (!itemsRef.current.some((entry) => entry.id === current.id)) return
               update(current.id, {
                 storageNotSaved: true,
@@ -768,7 +771,7 @@ function ImageItemMeta({ item }: { item: ImageQueueItem }) {
   return (
     <>
       <div className="meta mt-0.5 flex flex-wrap items-center gap-2 text-[12.5px] text-muted-foreground">
-        {item.status === "done" && item.result && !item.result.passthrough ? (
+        {item.status === "done" && item.result && !item.result.passthrough && !item.storageUploadInProgress ? (
           <>
             <span className="font-mono text-xs tabular-nums">{formatMegabytes(item.file.size)}</span>
             <span className="text-ok-text" aria-hidden="true">→</span>
@@ -797,10 +800,7 @@ function ImageItemMeta({ item }: { item: ImageQueueItem }) {
           </>
         ) : null}
         {item.status === "done" && item.storageUploadInProgress ? (
-          <>
-            <span className="font-mono text-xs tabular-nums">{formatMegabytes(item.file.size)}</span>
-            <Badge variant="shrinking">Saving online · {Math.min(item.uploadProgress ?? 0, 99)}%</Badge>
-          </>
+          <Badge variant="shrinking">Saving online · {Math.min(item.uploadProgress ?? 0, 99)}%</Badge>
         ) : null}
         {item.status === "error" ? (
           <>

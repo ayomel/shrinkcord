@@ -17,15 +17,21 @@ describe("resolveShrinkcordStorageUrl", () => {
 })
 
 describe("formatStorageAvailabilityLabel", () => {
-  it("uses whole-day rounding when several days remain", () => {
-    const now = new Date("2026-10-21T12:00:00.000Z")
-    const label = formatStorageAvailabilityLabel("2026-10-28T12:00:00.000Z", now)
-    assert.equal(label, "Available for 7 days")
+  it("rounds remaining days down", () => {
+    const now = new Date("2026-10-21T00:00:00.000Z")
+    const label = formatStorageAvailabilityLabel("2026-10-27T12:00:00.000Z", now)
+    assert.equal(label, "Available for 6 days")
   })
 
-  it("falls back to a calendar date when less than one whole day remains", () => {
+  it("shows one day when exactly one whole day remains", () => {
+    const now = new Date("2026-10-21T12:00:00.000Z")
+    const label = formatStorageAvailabilityLabel("2026-10-22T12:00:00.000Z", now)
+    assert.equal(label, "Available for 1 day")
+  })
+
+  it("shows less than a day when under one whole day remains", () => {
     const now = new Date("2026-10-21T12:00:00.000Z")
     const label = formatStorageAvailabilityLabel("2026-10-21T22:00:00.000Z", now)
-    assert.match(label, /Available until/)
+    assert.equal(label, "Available for less than a day")
   })
 })

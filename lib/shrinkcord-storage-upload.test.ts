@@ -1,9 +1,11 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
+import { buildStorageResultPresentation, STORAGE_NOT_SAVED_NOTE } from "./storage-result-copy.ts"
 import {
   createShrinkcordUploadSession,
   putBlobWithXhr,
   putUploadTimeoutMs,
+  StorageTimeoutError,
   uploadCompressedBlobToStorage,
   type ShrinkcordUploadSession,
 } from "./shrinkcord-storage-upload.ts"
@@ -124,6 +126,43 @@ describe("uploadCompressedBlobToStorage", () => {
     process.env.NEXT_PUBLIC_SHRINKCORD_API_URL = originalEnv
   })
 
+  it("hung POST ends in not saved online", async () => {
+    process.env.NEXT_PUBLIC_SHRINKCORD_API_URL = baseUrl
+    const result = await uploadCompressedBlobToStorage({
+      blob,
+      fileName: "a.jpg",
+      contentType: "image/jpeg",
+      baseUrl,
+      createSessionImpl: async () => {
+        throw new StorageTimeoutError()
+      },
+    })
+    assert.deepEqual(result, { ok: false, reason: "network" })
+    const view = buildStorageResultPresentation({ storageNotSaved: true })
+    assert.equal(view?.kind, "not_saved")
+    if (view?.kind === "not_saved") assert.equal(view.note, STORAGE_NOT_SAVED_NOTE)
+    process.env.NEXT_PUBLIC_SHRINKCORD_API_URL = originalEnv
+  })
+
+  it("hung PUT ends in not saved online", async () => {
+    process.env.NEXT_PUBLIC_SHRINKCORD_API_URL = baseUrl
+    const result = await uploadCompressedBlobToStorage({
+      blob,
+      fileName: "a.jpg",
+      contentType: "image/jpeg",
+      baseUrl,
+      createSessionImpl: async () => session("key-1"),
+      putImpl: async () => {
+        throw new StorageTimeoutError()
+      },
+    })
+    assert.deepEqual(result, { ok: false, reason: "network" })
+    const view = buildStorageResultPresentation({ storageNotSaved: true })
+    assert.equal(view?.kind, "not_saved")
+    if (view?.kind === "not_saved") assert.equal(view.note, STORAGE_NOT_SAVED_NOTE)
+    process.env.NEXT_PUBLIC_SHRINKCORD_API_URL = originalEnv
+  })
+
   it("returns network on PUT failure without throwing", async () => {
     process.env.NEXT_PUBLIC_SHRINKCORD_API_URL = baseUrl
     const result = await uploadCompressedBlobToStorage({
@@ -142,8 +181,12 @@ describe("uploadCompressedBlobToStorage", () => {
 })
 
 describe("putUploadTimeoutMs", () => {
-  it("scales with payload size", () => {
-    assert.ok(putUploadTimeoutMs(1024) < putUploadTimeoutMs(50 * 1024 * 1024))
+  const maxTimeout = 30 * 60 * 1000
+
+  it("adds time per MiB so sub-megabyte files stay under the cap", () => {
+    assert.ok(putUploadTimeoutMs(900 * 1024) < maxTimeout)
+    assert.equal(putUploadTimeoutMs(900 * 1024), 60_000)
+    assert.ok(putUploadTimeoutMs(25 * 1024 * 1024) < putUploadTimeoutMs(30 * 1024 * 1024))
   })
 })
 

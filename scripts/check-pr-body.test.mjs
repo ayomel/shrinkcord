@@ -87,12 +87,11 @@ describe("validatePrBody", () => {
     )
   })
 
-  it("ignores violations inside fenced and indented code", () => {
+  it("ignores violations inside fenced code blocks", () => {
     const result = validatePrBody(
       [
         "- Valid bullet here.",
         "",
-        "    foo – bar",
         "~~~",
         "foo – bar",
         "~~~",
@@ -112,6 +111,20 @@ describe("validatePrBody", () => {
     const bad = validatePrBody("1. Item.\n\n    Continuation \u2013 en dash.")
     assert.equal(bad.ok, false)
     const good = validatePrBody("1. Item.\n\n    Continuation is a full sentence.")
+    assert.equal(good.ok, true)
+  })
+
+  it("checks indented prose after a blank line inside an unordered list item", () => {
+    const bad = validatePrBody("- Item.\n\n    Continuation \u2013 en dash.")
+    assert.equal(bad.ok, false)
+    const good = validatePrBody("- Item.\n\n    Continuation is a full sentence.")
+    assert.equal(good.ok, true)
+  })
+
+  it("checks a second ordered continuation after another blank line", () => {
+    const bad = validatePrBody("1. First.\n\n    Part one.\n\n    Part two \u2013 en dash.")
+    assert.equal(bad.ok, false)
+    const good = validatePrBody("1. First.\n\n    Part one.\n\n    Part two is a full sentence.")
     assert.equal(good.ok, true)
   })
 
