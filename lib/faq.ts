@@ -9,7 +9,7 @@ export const faqs = [
     id: "upload",
     question: "Does Shrinkcord upload my image?",
     answer:
-      "No. Image compression decodes and re-encodes the file in your browser. MP4 video compression is separate and uploads the selected video for server-side processing.",
+      "Images are compressed in your browser first. Only the smaller compressed output is uploaded for a 7-day storage link when this site is connected to the Shrinkcord API. Files that already fit are not saved online. MP4 video compression uploads the selected video for server-side processing.",
   },
   {
     id: "formats",
@@ -21,7 +21,7 @@ export const faqs = [
     id: "video",
     question: "What happens when I compress an MP4?",
     answer:
-      "Shrinkcord uploads MP4 or MOV videos directly to the compression API and processes them in a server-side job. The input limit is 524,288,000 bytes (500 MiB) and 10 minutes when your browser can read duration metadata. The default target is 20 MB (20,000,000 bytes). Completed outputs are available until you download them or they expire on the server.",
+      "Shrinkcord uploads MP4 or MOV videos directly to the compression API and processes them in a server-side job. The input limit is 524,288,000 bytes (500 MiB) and 10 minutes when your browser can read duration metadata. The default target is 20 MB (20,000,000 bytes). The original upload is deleted after processing. Only the compressed output is stored for 7 days with a download link.",
   },
   {
     id: "png",
@@ -33,7 +33,7 @@ export const faqs = [
     id: "already-small",
     question: "What if the image is already under 20 MB?",
     answer:
-      "It is not modified. You can download the same file you dropped.",
+      "It is not modified and is not saved online. You can download the same file you dropped.",
   },
   {
     id: "still-rejected",

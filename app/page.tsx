@@ -12,19 +12,19 @@ const steps = [
     copy: "JPEG, PNG, WebP, MP4, or MOV. Images and videos each run one at a time so the tab stays responsive.",
   },
   {
-    title: "Images stay local",
-    copy: "Large images re-encode in your browser. Images at or under 20 MiB are returned unchanged.",
+    title: "Compress in the browser",
+    copy: "Images re-encode on your device. Only the smaller compressed output is saved online for 7 days when the API is configured.",
   },
   {
     title: "Download and send",
-    copy: "The result is 19.5 MB or under, named with -discord, ready for Discord's free upload.",
+    copy: "Download locally right away. Compressed outputs that were saved online include a storage link. Files that already fit are not stored online.",
   },
 ]
 
 const proofs = [
   {
-    lead: "Images stay on your device.",
-    rest: "The file is decoded and re-encoded on this device.",
+    lead: "Images compress in your browser.",
+    rest: "Only the smaller compressed output is saved online for 7 days when storage is available.",
   },
   {
     lead: "Quality first, then dimensions.",
@@ -32,7 +32,7 @@ const proofs = [
   },
   {
     lead: "Videos upload to Shrinkcord.",
-    rest: "Server-side compression; outputs are removed after download or about an hour.",
+    rest: "The server compresses the video, deletes the original upload after processing, and keeps the compressed output for 7 days.",
   },
 ]
 
@@ -78,14 +78,15 @@ export default function Home() {
               <em className="not-italic text-brand-text">20&nbsp;MB</em> limit.
             </h1>
             <p className="lede mt-3 max-w-[30em] text-base text-muted-foreground lg:mt-[18px] lg:text-lg">
-              Drop images or MP4/MOV videos. Images stay on your device; large ones re-encode to
-              19.5 MiB or less in the browser. Videos upload to the Shrinkcord server for
-              compression under Discord&apos;s limit.
+              Drop images or MP4/MOV videos. Images compress in your browser, and only the smaller
+              compressed output is saved online for 7 days when the API is connected. Videos upload
+              to be compressed on the server; the original is deleted after processing and only the
+              compressed output is stored for 7 days.
             </p>
             <div className="mt-3.5 flex flex-wrap gap-3.5 text-[13px] text-muted-foreground lg:hidden">
               <span className="inline-flex items-center gap-1.5">
                 <Check className="size-3.5 text-ok-text" strokeWidth={2.4} aria-hidden="true" />
-                Images stay on your device
+                Browser image compression
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <Check className="size-3.5 text-ok-text" strokeWidth={2.4} aria-hidden="true" />

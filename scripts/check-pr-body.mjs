@@ -37,11 +37,64 @@ function stripFencedCodeBlocks(text) {
  * @param {string} text
  * @returns {string}
  */
+function isListMarkerLine(line) {
+  return /^\s*(?:[-*+]|\d+\.)\s/.test(line)
+}
+
 function stripIndentedCodeBlocks(text) {
-  return text
-    .split("\n")
-    .filter((line) => !/^(?: {4}|\t)/.test(line))
-    .join("\n")
+  const lines = text.split("\n")
+  const out = []
+  let index = 0
+  let openListItem = false
+  let sawIndentedContinuation = false
+
+  while (index < lines.length) {
+    const line = lines[index]
+    const trimmed = line.trim()
+    const indented = /^(?: {4}|\t)/.test(line)
+
+    if (isListMarkerLine(line)) {
+      openListItem = true
+      sawIndentedContinuation = false
+      out.push(line)
+      index += 1
+      continue
+    }
+
+    if (!indented) {
+      if (trimmed !== "" && !isListMarkerLine(line)) {
+        openListItem = false
+        sawIndentedContinuation = false
+      }
+      out.push(line)
+      index += 1
+      continue
+    }
+
+    const previous = out.length > 0 ? out[out.length - 1] : ""
+    const followsBlankLine = out.length === 0 || previous.trim() === ""
+    const dedented = line.replace(/^(?: {4}|\t)+/, "")
+    const isNestedListItem = /^(?:[-*+]|\d+\.)\s/.test(dedented)
+    const isListContinuation = openListItem && (followsBlankLine || sawIndentedContinuation)
+
+    if (isNestedListItem || isListContinuation) {
+      sawIndentedContinuation = true
+      out.push(line)
+      index += 1
+      continue
+    }
+
+    if (!followsBlankLine) {
+      out.push(line)
+      index += 1
+      continue
+    }
+
+    while (index < lines.length && /^(?: {4}|\t)/.test(lines[index])) {
+      index += 1
+    }
+  }
+  return out.join("\n")
 }
 
 /**
