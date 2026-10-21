@@ -1,4 +1,4 @@
-import { JsonLd } from "@/components/json-ld"
+import { JsonLd } from "@/components/JsonLd"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -6,8 +6,8 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
-import { Button } from "@/components/ui/button"
+} from "@/components/ui/Breadcrumb"
+import { Button } from "@/components/ui/Button"
 import {
   Table,
   TableBody,
@@ -15,7 +15,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
+} from "@/components/ui/Table"
 import { site } from "@/lib/site"
 import type { Metadata } from "next"
 import Link from "next/link"

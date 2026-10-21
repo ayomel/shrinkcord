@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import { renderToStaticMarkup } from "react-dom/server"
-import { StorageResultNote } from "../components/storage-result-note"
+import { StorageResultNote } from "../components/StorageResultNote"
 import {
   STORAGE_ALREADY_FITS_NOTE,
   STORAGE_LINK_EXPIRED_NOTE,

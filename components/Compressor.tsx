@@ -1,10 +1,15 @@
 "use client"
 
-import { MediaDropZone } from "@/components/media-drop-zone"
-import { StorageResultNote } from "@/components/storage-result-note"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Progress } from "@/components/ui/progress"
+import { useCallback, useEffect, useRef, useState, type MutableRefObject } from "react"
+
+import { zipSync } from "fflate"
+import { AlertCircle, X } from "lucide-react"
+
+import { MediaDropZone } from "@/components/MediaDropZone"
+import { StorageResultNote } from "@/components/StorageResultNote"
+import { Badge } from "@/components/ui/Badge"
+import { Button } from "@/components/ui/Button"
+import { Progress } from "@/components/ui/Progress"
 import { type ShrinkResult, typeLabel } from "@/lib/compress"
 import { formatDropClassifyErrors, type DropRejection } from "@/lib/drop-rejection-messages"
 import { classifyFileAsync } from "@/lib/file-classification"
@@ -26,9 +31,6 @@ import { requestServerJobCancel } from "@/lib/video-server-cleanup"
 import { createVideoJobAttempt, submitVideoJob } from "@/lib/video-jobs"
 import { DEFAULT_VIDEO_TARGET_BYTES } from "@/lib/video-selection"
 import { videoRetryUiFlags } from "@/lib/video-row-retry-ui"
-import { zipSync } from "fflate"
-import { AlertCircle, X } from "lucide-react"
-import { useCallback, useEffect, useRef, useState, type MutableRefObject } from "react"
 
 type ImageItemStatus = "queued" | "working" | "done" | "error"
 
