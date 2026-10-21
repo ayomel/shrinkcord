@@ -26,11 +26,25 @@ describe("formatStorageAvailabilityLabel", () => {
   const now = new Date("2026-10-21T00:00:00.000Z")
 
   it("rounds remaining days up to whole days", () => {
+    const exactlySevenDays = new Date(now.getTime() + 7 * MS_PER_DAY)
+    assert.equal(formatStorageAvailabilityLabel(exactlySevenDays.toISOString(), now), "Available for 7 days")
+
     const almostSevenDays = new Date(now.getTime() + 7 * MS_PER_DAY - 5_000)
     assert.equal(formatStorageAvailabilityLabel(almostSevenDays.toISOString(), now), "Available for 7 days")
 
     const sixAndHalfDays = new Date(now.getTime() + 6.5 * MS_PER_DAY)
     assert.equal(formatStorageAvailabilityLabel(sixAndHalfDays.toISOString(), now), "Available for 7 days")
+  })
+
+  it("never shows more than the seven-day retention cap", () => {
+    const sevenDaysPlusOneMs = new Date(now.getTime() + 7 * MS_PER_DAY + 1)
+    assert.equal(formatStorageAvailabilityLabel(sevenDaysPlusOneMs.toISOString(), now), "Available for 7 days")
+
+    const sevenDaysPlusFiveSeconds = new Date(now.getTime() + 7 * MS_PER_DAY + 5_000)
+    assert.equal(formatStorageAvailabilityLabel(sevenDaysPlusFiveSeconds.toISOString(), now), "Available for 7 days")
+
+    const sevenDaysPlusOneHour = new Date(now.getTime() + 7 * MS_PER_DAY + MS_PER_DAY / 24)
+    assert.equal(formatStorageAvailabilityLabel(sevenDaysPlusOneHour.toISOString(), now), "Available for 7 days")
   })
 
   it("shows two days when a little over one day remains", () => {

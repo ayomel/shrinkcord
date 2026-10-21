@@ -90,4 +90,5 @@ describe("StorageResultNote", () => {
     assert.match(html, /Link expired/)
     assert.doesNotMatch(html, /<a[^>]*Storage download link/)
   })
+
 })
