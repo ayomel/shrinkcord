@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/react";
 import { Inter, JetBrains_Mono } from "next/font/google";
-import { Footer } from "@/components/block/Footer";
-import { SiteHeader } from "@/components/SiteHeader";
+import { Footer } from "@/components/block/footer";
+import { SiteHeader } from "@/components/siteHeader";
 import { site } from "@/lib/site";
 import "./globals.css";
 
