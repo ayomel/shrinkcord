@@ -377,6 +377,7 @@ export function Compressor() {
       update(itemId, { status: "downloading", downloadProgress: 0 })
       const output = await fetchVideoJobOutput(jobId, {
         signal: controller.signal,
+        downloadUrl: storageDownloadUrl,
         onProgress: (loaded, total) => {
           const percent = total && total > 0
             ? Math.min(99, Math.round((loaded / total) * 100))
