@@ -4,9 +4,9 @@ import { StorageResultNote } from "@/components/StorageResultNote"
 import { Button } from "@/components/ui/Button"
 import { formatMegabytes } from "@/lib/limits"
 import { videoRetryUiFlags } from "@/lib/video-row-retry-ui"
-import { ImageItemMeta } from "./ImageQueueItemMeta"
+import { ImageItemMeta } from "./imageQueueItemMeta"
 import { ResultThumb } from "./thumbnail"
-import { VideoItemMeta } from "./VideoQueueItemMeta"
+import { VideoItemMeta } from "./videoQueueItemMeta"
 import type { QueueItem } from "./types"
 
 type Props = {

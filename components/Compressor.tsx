@@ -2,7 +2,7 @@
 
 import { MediaDropZone } from "@/components/MediaDropZone"
 import { Button } from "@/components/ui/Button"
-import { CompressorQueueRow } from "./compressor/CompressorQueueRow"
+import { CompressorQueueRow } from "./compressor/compressorQueueRow"
 import { downloadOne } from "./compressor/downloadQueue"
 import { useCompressorQueue } from "./compressor/useCompressorQueue"
 

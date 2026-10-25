@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import { renderToStaticMarkup } from "react-dom/server"
 
-import { CompressorQueueRow } from "./CompressorQueueRow"
+import { CompressorQueueRow } from "./compressorQueueRow"
 import type { ImageQueueItem, QueueItem, VideoQueueItem } from "./types"
 
 const video: VideoQueueItem = {

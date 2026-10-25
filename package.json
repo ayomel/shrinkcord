@@ -12,7 +12,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
-    "test": "pnpm typecheck && tsx --test components/compressor/CompressorQueueRow.test.tsx components/compressor/downloadQueue.test.ts lib/output-strategy.test.ts lib/file-classification.test.ts lib/drop-rejection-messages.test.ts lib/video-progress.test.ts lib/shrinkcord-api-url.test.ts lib/shrinkcord-api-client.test.ts lib/shrinkcord-storage-upload.test.ts lib/shrinkcord-storage-queue.test.ts lib/shrinkcord-storage-url.test.ts lib/storage-link-expiry-refresh.test.ts lib/storage-result-copy.test.tsx lib/video-selection.test.ts lib/video-jobs.test.ts lib/video-job-monitor.test.ts lib/video-job-output.test.ts lib/png-alpha.test.ts lib/run-shrink.test.ts lib/search-quality.test.ts lib/video-row-retry-ui.test.ts && node --test scripts/check-pr-body.test.mjs"
+    "test": "pnpm typecheck && tsx --test components/compressor/compressorQueueRow.test.tsx components/compressor/downloadQueue.test.ts lib/output-strategy.test.ts lib/file-classification.test.ts lib/drop-rejection-messages.test.ts lib/video-progress.test.ts lib/shrinkcord-api-url.test.ts lib/shrinkcord-api-client.test.ts lib/shrinkcord-storage-upload.test.ts lib/shrinkcord-storage-queue.test.ts lib/shrinkcord-storage-url.test.ts lib/storage-link-expiry-refresh.test.ts lib/storage-result-copy.test.tsx lib/video-selection.test.ts lib/video-jobs.test.ts lib/video-job-monitor.test.ts lib/video-job-output.test.ts lib/png-alpha.test.ts lib/run-shrink.test.ts lib/search-quality.test.ts lib/video-row-retry-ui.test.ts && node --test scripts/check-pr-body.test.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
