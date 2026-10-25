@@ -64,6 +64,12 @@ export function runShrink(
       })
     }
 
-    worker.postMessage({ file })
+    try {
+      worker.postMessage({ file })
+    } catch {
+      finish(() => {
+        compress(file, onProgress).then(resolve, reject)
+      })
+    }
   })
 }

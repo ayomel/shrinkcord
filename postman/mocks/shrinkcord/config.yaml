@@ -1,0 +1,11 @@
+version: 1
+id: cfc88b0b-1cc2-417e-85a2-adcb8759e23c
+name: Shrinkcord QA
+slug: shrinkcord-qa
+protocol: http
+port: 5190
+scenarios:
+  - name: default
+    path: ./default.js
+    default: true
+interceptRequests: false

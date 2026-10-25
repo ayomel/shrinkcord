@@ -23,6 +23,11 @@ export function Compressor() {
           {queue.classifyError}
         </p>
       ) : null}
+      {queue.downloadAllError ? (
+        <p className="mt-3 text-sm text-destructive" role="alert">
+          {queue.downloadAllError}
+        </p>
+      ) : null}
       {queue.items.length > 0 ? (
         <ul aria-live="polite" className="mt-3 grid gap-2">
           {queue.items.map((item) => (
@@ -47,8 +52,8 @@ export function Compressor() {
               Clear all
             </Button>
             {queue.downloadable.length > 0 ? (
-              <Button type="button" size="sm" variant="outline" onClick={() => void queue.downloadAll()}>
-                Download all ({queue.downloadable.length})
+              <Button type="button" size="sm" variant="outline" disabled={queue.isDownloadingAll} aria-busy={queue.isDownloadingAll} onClick={() => void queue.downloadAll()}>
+                {queue.isDownloadingAll ? "Preparing ZIP..." : `Download all (${queue.downloadable.length})`}
               </Button>
             ) : null}
           </div>

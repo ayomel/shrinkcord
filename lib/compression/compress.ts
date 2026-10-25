@@ -247,6 +247,9 @@ export async function compressFile(
   if (!inputType) {
     throw new Error("Use a JPEG, PNG, or WebP.")
   }
+  if (file.size === 0) {
+    throw new Error("This image is empty.")
+  }
 
   if (file.size <= DISCORD_FREE_LIMIT_BYTES) {
     onProgress?.(100)
@@ -267,19 +270,19 @@ export async function compressFile(
   }
 
   const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" })
-  const hasTransparency =
-    inputType === "image/png" ? await fileHasTransparency(file, bitmap) : false
-
-  let encodes = 0
-  // Transparent PNGs get a full WebP scale-pass budget before JPEG flatten passes.
-  const passBudget = 1 + QUALITY_SEARCH_MAX_STEPS
-  const encodeBudget = (hasTransparency ? passBudget * 3 : 0) + passBudget * 3
-  const report = () => {
-    encodes += 1
-    onProgress?.(Math.min(95, Math.round((encodes / encodeBudget) * 100)))
-  }
-
   try {
+    const hasTransparency =
+      inputType === "image/png" ? await fileHasTransparency(file, bitmap) : false
+
+    let encodes = 0
+    // Transparent PNGs get a full WebP scale-pass budget before JPEG flatten passes.
+    const passBudget = 1 + QUALITY_SEARCH_MAX_STEPS
+    const encodeBudget = (hasTransparency ? passBudget * 3 : 0) + passBudget * 3
+    const report = () => {
+      encodes += 1
+      onProgress?.(Math.min(95, Math.round((encodes / encodeBudget) * 100)))
+    }
+
     // Transparent PNGs: keep alpha via WebP (including scaled passes) before JPEG flatten.
     if (hasTransparency) {
       try {

@@ -1,7 +1,11 @@
-import { downloadShrinkcordJobFile, ShrinkcordApiError } from "@/lib/api/shrinkcordApiClient"
+import {
+  downloadShrinkcordJobFile,
+  MAX_VIDEO_OUTPUT_BYTES,
+  ShrinkcordApiError,
+} from "@/lib/api/shrinkcordApiClient"
 import { getShrinkcordApiBaseUrl } from "@/lib/api/shrinkcordApiUrl"
 
-export const MAX_VIDEO_OUTPUT_BYTES = 500 * 1024 * 1024
+export { MAX_VIDEO_OUTPUT_BYTES }
 
 export class VideoOutputError extends Error {
   readonly status?: number
@@ -47,8 +51,12 @@ export async function fetchVideoJobOutput(
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") throw error
     if (error instanceof ShrinkcordApiError) {
-      if (error.status === 404) {
-        throw new VideoOutputError("This video output is no longer available.", { status: 404, retryable: false, expired: true })
+      if (error.status === 404 || (options.downloadUrl && (error.status === 401 || error.status === 403))) {
+        throw new VideoOutputError("This video output is no longer available.", {
+          status: error.status,
+          retryable: false,
+          expired: true,
+        })
       }
       throw new VideoOutputError(error.message, { status: error.status, retryable: error.retryable })
     }

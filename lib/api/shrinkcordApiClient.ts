@@ -74,6 +74,8 @@ export type DownloadJobFileOptions = {
   onProgress?: (loaded: number, total: number | null) => void
 }
 
+export const MAX_VIDEO_OUTPUT_BYTES = 500 * 1024 * 1024
+
 export type ShrinkcordApiTransport = {
   uploadJob(options: UploadJobOptions): Promise<{ id: string }>
   getJob(jobId: string, signal?: AbortSignal, baseUrl?: string): Promise<ShrinkcordJob>
@@ -521,30 +523,59 @@ export async function downloadShrinkcordJobFile(
     })
   } catch {
     if (options.signal?.aborted) throw abortError()
+    if (downloadSignal.aborted) {
+      throw new ShrinkcordApiError("network", "The video download timed out. Try again.", { retryable: true })
+    }
     throw new ShrinkcordApiError("network", "The video download connection failed.", { retryable: true })
   }
   if (!response.ok) {
     throw mapHttpStatusToError(response.status, await response.text().catch(() => ""))
   }
+  const lengthHeader = response.headers.get("content-length")
+  const total = lengthHeader && /^\d+$/.test(lengthHeader) ? Number(lengthHeader) : null
+  if (total !== null && total > MAX_VIDEO_OUTPUT_BYTES) {
+    void response.body?.cancel().catch(() => {})
+    throw new ShrinkcordApiError("too_large", "The video exceeds the 500 MiB download limit.", {
+      status: 413,
+      retryable: false,
+    })
+  }
   if (!response.body) {
     throw new ShrinkcordApiError("corrupt", "Shrinkcord returned an empty video file.", { retryable: false })
   }
 
-  const lengthHeader = response.headers.get("content-length")
-  const total = lengthHeader && /^\d+$/.test(lengthHeader) ? Number(lengthHeader) : null
   const reader = response.body.getReader()
   const chunks: Uint8Array[] = []
   let loaded = 0
   options.onProgress?.(0, total)
 
-  while (true) {
-    if (downloadSignal.aborted) throw abortError()
-    const { done, value } = await reader.read()
-    if (done) break
-    if (!value?.byteLength) continue
-    loaded += value.byteLength
-    chunks.push(value)
-    options.onProgress?.(loaded, total)
+  try {
+    while (true) {
+      if (downloadSignal.aborted) throw abortError()
+      const { done, value } = await readWithSignal(reader, downloadSignal)
+      if (done) break
+      if (!value?.byteLength) continue
+      loaded += value.byteLength
+      if (loaded > MAX_VIDEO_OUTPUT_BYTES) {
+        void reader.cancel().catch(() => {})
+        throw new ShrinkcordApiError("too_large", "The video exceeds the 500 MiB download limit.", {
+          status: 413,
+          retryable: false,
+        })
+      }
+      chunks.push(value)
+      options.onProgress?.(loaded, total)
+    }
+  } catch (error) {
+    void reader.cancel().catch(() => {})
+    if (options.signal?.aborted) throw abortError()
+    if (downloadSignal.aborted) {
+      throw new ShrinkcordApiError("network", "The video download timed out. Try again.", { retryable: true })
+    }
+    if (error instanceof ShrinkcordApiError) throw error
+    throw new ShrinkcordApiError("network", "The video download connection failed.", { retryable: true })
+  } finally {
+    reader.releaseLock()
   }
 
   if (loaded === 0) {
@@ -552,6 +583,39 @@ export async function downloadShrinkcordJobFile(
   }
   const blob = new Blob(chunks as BlobPart[], { type: "video/mp4" })
   return blob
+}
+
+function readWithSignal(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  signal: AbortSignal,
+): Promise<ReadableStreamReadResult<Uint8Array>> {
+  if (signal.aborted) return Promise.reject(abortError())
+  return new Promise((resolve, reject) => {
+    let settled = false
+    const onAbort = () => {
+      if (settled) return
+      settled = true
+      signal.removeEventListener("abort", onAbort)
+      void reader.cancel().catch(() => {})
+      reject(abortError())
+    }
+    signal.addEventListener("abort", onAbort, { once: true })
+    reader.read().then(
+      (result) => {
+        if (settled) return
+        settled = true
+        signal.removeEventListener("abort", onAbort)
+        resolve(result)
+      },
+      (error: unknown) => {
+        if (settled) return
+        settled = true
+        signal.removeEventListener("abort", onAbort)
+        reject(error)
+      },
+    )
+    if (signal.aborted) onAbort()
+  })
 }
 
 export const browserShrinkcordApiTransport: ShrinkcordApiTransport = {
