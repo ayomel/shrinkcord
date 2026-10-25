@@ -19,19 +19,50 @@ describe("getVideoOutputFileName", () => {
 })
 
 describe("fetchVideoJobOutput", () => {
-  it("downloads with Content-Length progress", async () => {
+  it("downloads directly from the signed URL without requesting the job file endpoint", async () => {
+    const signedUrl = "https://storage.test/output.mp4?signature=keep%2Bexact&expires=123"
+    const requests: string[] = []
     const progress: Array<{ loaded: number; total: number | null }> = []
     const originalFetch = globalThis.fetch
-    globalThis.fetch = async () => new Response(mp4Bytes, {
-      status: 200,
-      headers: { "Content-Type": "video/mp4", "Content-Length": String(mp4Bytes.byteLength) },
-    })
+    globalThis.fetch = async (input) => {
+      requests.push(String(input))
+      return new Response(mp4Bytes, {
+        status: 200,
+        headers: { "Content-Type": "video/mp4", "Content-Length": String(mp4Bytes.byteLength) },
+      })
+    }
+    try {
+      const output = await fetchVideoJobOutput(jobId, {
+        apiBaseUrl: baseUrl,
+        downloadUrl: signedUrl,
+        onProgress: (loaded, total) => progress.push({ loaded, total }),
+      })
+      assert.equal(output.bytes, mp4Bytes.byteLength)
+      assert.deepEqual(requests, [signedUrl])
+      assert.ok(progress.some((entry) => entry.loaded === mp4Bytes.byteLength))
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  })
+
+  it("downloads with Content-Length progress", async () => {
+    const progress: Array<{ loaded: number; total: number | null }> = []
+    const requests: string[] = []
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = async (input) => {
+      requests.push(String(input))
+      return new Response(mp4Bytes, {
+        status: 200,
+        headers: { "Content-Type": "video/mp4", "Content-Length": String(mp4Bytes.byteLength) },
+      })
+    }
     try {
       const output = await fetchVideoJobOutput(jobId, {
         apiBaseUrl: baseUrl,
         onProgress: (loaded, total) => progress.push({ loaded, total }),
       })
       assert.equal(output.bytes, mp4Bytes.byteLength)
+      assert.deepEqual(requests, [`${baseUrl}/jobs/${jobId}/file`])
       assert.ok(progress.some((entry) => entry.loaded === mp4Bytes.byteLength))
     } finally {
       globalThis.fetch = originalFetch
@@ -61,7 +92,7 @@ describe("fetchVideoJobOutput", () => {
     setTimeout(() => controller.abort(), 5)
     try {
       await assert.rejects(
-        fetchVideoJobOutput(jobId, { apiBaseUrl: baseUrl, signal: controller.signal }),
+        fetchVideoJobOutput(jobId, { apiBaseUrl: baseUrl, downloadUrl: "https://storage.test/output.mp4?sig=cancel", signal: controller.signal }),
         (error: unknown) => error instanceof DOMException && error.name === "AbortError",
       )
     } finally {
@@ -74,7 +105,7 @@ describe("fetchVideoJobOutput", () => {
     const huge = new Uint8Array(MAX_VIDEO_OUTPUT_BYTES + 1)
     globalThis.fetch = async () => new Response(huge, { status: 200, headers: { "Content-Type": "video/mp4" } })
     try {
-      await assert.rejects(fetchVideoJobOutput(jobId, { apiBaseUrl: baseUrl }), /500 MiB/)
+      await assert.rejects(fetchVideoJobOutput(jobId, { apiBaseUrl: baseUrl, downloadUrl: "https://storage.test/output.mp4?sig=cap" }), /500 MiB/)
     } finally {
       globalThis.fetch = originalFetch
     }

@@ -22,6 +22,7 @@ export class VideoOutputError extends Error {
 export type FetchVideoJobOutputOptions = {
   signal?: AbortSignal
   apiBaseUrl?: string
+  downloadUrl?: string
   onProgress?: (loaded: number, total: number | null) => void
 }
 
@@ -36,6 +37,7 @@ export async function fetchVideoJobOutput(
     const blob = await downloadShrinkcordJobFile(jobId, {
       signal: options.signal,
       baseUrl,
+      downloadUrl: options.downloadUrl,
       onProgress: options.onProgress,
     })
     if (blob.size > MAX_VIDEO_OUTPUT_BYTES) {

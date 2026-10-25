@@ -70,6 +70,7 @@ export type UploadJobOptions = {
 export type DownloadJobFileOptions = {
   signal?: AbortSignal
   baseUrl?: string
+  downloadUrl?: string
   onProgress?: (loaded: number, total: number | null) => void
 }
 
@@ -506,7 +507,7 @@ export async function downloadShrinkcordJobFile(
   options: DownloadJobFileOptions = {},
 ): Promise<Blob> {
   const baseUrl = options.baseUrl ?? getShrinkcordApiBaseUrl()
-  const url = shrinkcordApiUrl(`/jobs/${encodeURIComponent(jobId)}/file`, baseUrl)
+  const url = options.downloadUrl ?? shrinkcordApiUrl(`/jobs/${encodeURIComponent(jobId)}/file`, baseUrl)
   const downloadSignal = timedSignal(options.signal ?? new AbortController().signal, 10 * 60 * 1000)
   let response: Response
   try {
