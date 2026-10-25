@@ -107,4 +107,25 @@ describe("runShrink main-thread fallback", () => {
     assert.equal(result.fileName, "onerror-fallback.jpg")
     assert.equal(worker.terminated, true)
   })
+
+  it("falls back and terminates the worker when postMessage throws", async () => {
+    const file = new File(["png"], "x.png", { type: "image/png" })
+    const worker = new FakeWorker("onerror")
+    worker.postMessage = () => {
+      throw new Error("DataCloneError")
+    }
+    let compressCalls = 0
+
+    const result = await runShrink(file, undefined, {
+      openWorker: () => worker as unknown as Worker,
+      compress: async () => {
+        compressCalls += 1
+        return fakeResult({ fileName: "post-message-fallback.jpg" })
+      },
+    })
+
+    assert.equal(compressCalls, 1)
+    assert.equal(result.fileName, "post-message-fallback.jpg")
+    assert.equal(worker.terminated, true)
+  })
 })

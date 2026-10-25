@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import { unzipSync } from "fflate"
 
-import { downloadAll, downloadOne } from "./downloadQueue"
+import { downloadAll, DownloadAllError, MAX_DOWNLOAD_ALL_BYTES, downloadOne } from "./downloadQueue"
 import type { VideoQueueItem } from "./types"
 
 function video(id: string): VideoQueueItem {
@@ -71,5 +71,51 @@ describe("queue downloads", () => {
     } finally {
       browser.restore()
     }
+  })
+
+  it("reports fetch failures with a user-facing archive error", async (t) => {
+    t.mock.method(globalThis, "fetch", async () => { throw new Error("network down") })
+
+    await assert.rejects(downloadAll([video("one")]), (error: unknown) =>
+      error instanceof DownloadAllError && error.code === "fetch",
+    )
+  })
+
+  it("rejects unsuccessful HTTP responses", async (t) => {
+    t.mock.method(globalThis, "fetch", async () => new Response("server error", { status: 503 }))
+
+    await assert.rejects(downloadAll([video("one")]), (error: unknown) =>
+      error instanceof DownloadAllError && error.code === "http" && /503/.test(error.message),
+    )
+  })
+
+  it("enforces the total advertised input size before retaining over the cap", async (t) => {
+    let calls = 0
+    t.mock.method(globalThis, "fetch", async () => {
+      calls += 1
+      return new Response("x", {
+        headers: { "content-length": String(MAX_DOWNLOAD_ALL_BYTES) },
+      })
+    })
+
+    await assert.rejects(downloadAll([video("one"), video("two")]), (error: unknown) =>
+      error instanceof DownloadAllError && error.code === "too-large",
+    )
+    assert.equal(calls, 2)
+  })
+
+  it("passes and honors an abort signal", async (t) => {
+    const controller = new AbortController()
+    let receivedSignal: AbortSignal | undefined
+    t.mock.method(globalThis, "fetch", async (_url: string | URL | Request, init?: RequestInit) => {
+      receivedSignal = init?.signal ?? undefined
+      controller.abort()
+      return new Response("x")
+    })
+
+    await assert.rejects(downloadAll([video("one")], { signal: controller.signal }), (error: unknown) =>
+      error instanceof DownloadAllError && error.code === "aborted",
+    )
+    assert.equal(receivedSignal, controller.signal)
   })
 })
