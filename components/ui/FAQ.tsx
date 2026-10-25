@@ -4,7 +4,7 @@ import React, { useState, useId } from 'react';
 import { motion } from 'framer-motion';
 import { ChevronDown, Plus, Minus, Search, HelpCircle } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import { motionTransitions } from '../../lib/motion-tokens';
+import { motionTransitions } from '../../lib/site/motionTokens';
 
 export interface FAQItem {
   id: string;

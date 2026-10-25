@@ -1,10 +1,10 @@
 import type { MutableRefObject } from "react"
 
-import { classifyFileAsync } from "@/lib/file-classification"
-import { isShrinkcordCloudStorageConfigured } from "@/lib/shrinkcord-api-url"
-import { enqueueStorageSaveByFileName } from "@/lib/shrinkcord-storage-queue"
-import { isStorageUserAbort, uploadCompressedBlobToStorage } from "@/lib/shrinkcord-storage-upload"
-import { runShrink } from "@/lib/run-shrink"
+import { classifyFileAsync } from "@/lib/fileClassification"
+import { isShrinkcordCloudStorageConfigured } from "@/lib/api/shrinkcordApiUrl"
+import { enqueueStorageSaveByFileName } from "@/lib/storage/shrinkcordStorageQueue"
+import { isStorageUserAbort, uploadCompressedBlobToStorage } from "@/lib/storage/shrinkcordStorageUpload"
+import { runShrink } from "@/lib/compression/runShrink"
 import type { ImageQueueItem, QueueItem } from "./types"
 
 export type ImageQueueContext = {

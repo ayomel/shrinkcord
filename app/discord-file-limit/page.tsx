@@ -16,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/Table"
-import { site } from "@/lib/site"
+import { site } from "@/lib/site/site"
 import type { Metadata } from "next"
 import Link from "next/link"
 

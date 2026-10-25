@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/Badge"
 import { Progress } from "@/components/ui/Progress"
-import { typeLabel } from "@/lib/compress"
-import { formatMegabytes } from "@/lib/limits"
+import { typeLabel } from "@/lib/compression/compress"
+import { formatMegabytes } from "@/lib/compression/limits"
 import type { ImageQueueItem } from "./types"
 
 export function ImageItemMeta({ item }: { item: ImageQueueItem }) {

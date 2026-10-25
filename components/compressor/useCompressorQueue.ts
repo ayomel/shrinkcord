@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 
-import { formatDropClassifyErrors, type DropRejection } from "@/lib/drop-rejection-messages"
-import { classifyFileAsync } from "@/lib/file-classification"
-import { probeVideoDuration } from "@/lib/video-precheck"
-import { isShrinkcordVideoApiConfigured, VIDEO_API_DISABLED_MESSAGE } from "@/lib/shrinkcord-api-url"
-import { createVideoJobAttempt } from "@/lib/video-jobs"
+import { formatDropClassifyErrors, type DropRejection } from "@/lib/dropRejectionMessages"
+import { classifyFileAsync } from "@/lib/fileClassification"
+import { probeVideoDuration } from "@/lib/video/videoPrecheck"
+import { isShrinkcordVideoApiConfigured, VIDEO_API_DISABLED_MESSAGE } from "@/lib/api/shrinkcordApiUrl"
+import { createVideoJobAttempt } from "@/lib/video/videoJobs"
 import { drainImages } from "./imageQueue"
 import type { ImageQueueContext } from "./imageQueue"
 import { downloadAll as downloadQueue } from "./downloadQueue"

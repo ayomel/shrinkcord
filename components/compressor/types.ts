@@ -1,4 +1,4 @@
-import type { ShrinkResult } from "@/lib/compress"
+import type { ShrinkResult } from "@/lib/compression/compress"
 
 export type ImageItemStatus = "queued" | "working" | "done" | "error"
 

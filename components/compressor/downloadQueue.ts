@@ -1,6 +1,6 @@
 import { zipSync } from "fflate"
 
-import { getVideoOutputFileName } from "@/lib/video-job-output"
+import { getVideoOutputFileName } from "@/lib/video/videoJobOutput"
 import type { QueueItem } from "./types"
 
 export function downloadOne(item: QueueItem) {

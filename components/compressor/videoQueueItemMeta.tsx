@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/Badge"
 import { Progress } from "@/components/ui/Progress"
-import { formatMegabytes } from "@/lib/limits"
-import { videoProgressSnapshot } from "@/lib/video-progress"
+import { formatMegabytes } from "@/lib/compression/limits"
+import { videoProgressSnapshot } from "@/lib/video/videoProgress"
 import type { VideoQueueItem } from "./types"
 
 export function VideoItemMeta({ item }: { item: VideoQueueItem }) {

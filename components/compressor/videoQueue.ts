@@ -1,12 +1,12 @@
 import type { MutableRefObject } from "react"
 
-import { ShrinkcordApiError } from "@/lib/shrinkcord-api-client"
-import { isShrinkcordCloudStorageConfigured } from "@/lib/shrinkcord-api-url"
-import { monitorVideoJob } from "@/lib/video-job-monitor"
-import { fetchVideoJobOutput } from "@/lib/video-job-output"
-import { requestServerJobCancel } from "@/lib/video-server-cleanup"
-import { createVideoJobAttempt, submitVideoJob } from "@/lib/video-jobs"
-import { DEFAULT_VIDEO_TARGET_BYTES } from "@/lib/video-selection"
+import { ShrinkcordApiError } from "@/lib/api/shrinkcordApiClient"
+import { isShrinkcordCloudStorageConfigured } from "@/lib/api/shrinkcordApiUrl"
+import { monitorVideoJob } from "@/lib/video/videoJobMonitor"
+import { fetchVideoJobOutput } from "@/lib/video/videoJobOutput"
+import { requestServerJobCancel } from "@/lib/video/videoServerCleanup"
+import { createVideoJobAttempt, submitVideoJob } from "@/lib/video/videoJobs"
+import { DEFAULT_VIDEO_TARGET_BYTES } from "@/lib/video/videoSelection"
 import type { QueueItem, VideoItemStatus, VideoQueueItem } from "./types"
 
 export type VideoQueueContext = {
