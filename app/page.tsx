@@ -1,8 +1,8 @@
 import { Compressor } from "@/components/Compressor"
 import { JsonLd } from "@/components/JsonLd"
 import { FAQ } from "@/components/ui/FAQ"
-import { faqs } from "@/lib/faq"
-import { site } from "@/lib/site"
+import { faqs } from "@/lib/site/faq"
+import { site } from "@/lib/site/site"
 import { Check } from "lucide-react"
 import Link from "next/link"
 

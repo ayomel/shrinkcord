@@ -3,7 +3,7 @@ import { Analytics } from "@vercel/analytics/react";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { Footer } from "@/components/block/Footer";
 import { SiteHeader } from "@/components/SiteHeader";
-import { site } from "@/lib/site";
+import { site } from "@/lib/site/site";
 import "./globals.css";
 
 const inter = Inter({

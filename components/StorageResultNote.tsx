@@ -1,7 +1,7 @@
 "use client"
 
-import { buildStorageResultPresentation } from "@/lib/storage-result-copy"
-import { scheduleStorageLinkExpiryRefresh } from "@/lib/storage-link-expiry-refresh"
+import { buildStorageResultPresentation } from "@/lib/storage/storageResultCopy"
+import { scheduleStorageLinkExpiryRefresh } from "@/lib/storage/storageLinkExpiryRefresh"
 import { useEffect, useState } from "react"
 
 type StorageResultNoteProps = {
